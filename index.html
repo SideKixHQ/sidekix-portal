@@ -1417,11 +1417,11 @@ function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
           </div>
           <div style={{ marginTop:"0.75rem", fontSize:11, color:TEXT_MUTED, fontFamily:font }}>{filtered.length} of {subs.length} subscribers · Click any row to view details</div>
         </div>
+        {activePerson && activePerson.source !== "Application" && <SidePanel person={activePerson} onClose={() => setActivePerson(null)} onUpdate={updatePerson} />}
       </div>
     </div>
       </div>{/* end list view */}
       {activePerson && activePerson.source === "Application" && <ApplicationModal person={activePerson} onClose={() => setActivePerson(null)} onUpdate={updatePerson} />}
-      {activePerson && activePerson.source !== "Application" && <SidePanel person={activePerson} onClose={() => setActivePerson(null)} onUpdate={updatePerson} />}
     {/* Promo Code Send Modal */}
     {showPromoModal && (
       <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center" }} onClick={() => !promoSending && setShowPromoModal(false)}
