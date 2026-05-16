@@ -2,18 +2,22 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <title>SideKix Team Portal</title>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; }
-    body { margin: 0; padding: 0; background: #1C1A14; font-family: 'DM Sans', system-ui, sans-serif; }
+    body { margin: 0; padding: 0; background: #1C1A14; font-family: 'DM Sans', system-ui, sans-serif; -webkit-text-size-adjust: 100%; }
     #root { min-height: 100vh; }
     select option { background: #242017; color: #F0EAD6; }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    input, select, button, textarea { font-family: inherit; }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #3A3528; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #6B6454; }
+    @media (max-width: 768px) {
+      table { font-size: 11px; }
+    }
   </style>
 </head>
 <body>
@@ -67,6 +71,17 @@ const mono  = "'DM Mono', monospace";
 
 const ThemeContext = React.createContext("dark");
 function useTheme() { return React.useContext(ThemeContext); }
+
+// ─── Responsive hook ──────────────────────────────────────────────────────────
+function useWindowWidth() {
+  const [width, setWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 1200);
+  useEffect(() => {
+    function handle() { setWidth(window.innerWidth); }
+    window.addEventListener("resize", handle);
+    return () => window.removeEventListener("resize", handle);
+  }, []);
+  return width;
+}
 
 const ACCESS_PASSWORD = "sidekix2026";
 const ALLOWED_DOMAIN  = "sidekixhq.com";
@@ -753,6 +768,8 @@ function EmailComposer({ isInvite, person, app, show, setShow, sent, setSent, su
 // ─── Application Modal ────────────────────────────────────────────────────────
 function ApplicationModal({ person, onClose, onUpdate }) {
   const toast = useToast();
+  const width = useWindowWidth();
+  const isMobile = width < 768;
   const [notes,     setNotes]     = useState(person.notes || "");
   const [editNotes, setEditNotes] = useState(false);
   const [status,    setStatus]    = useState(person.status);
@@ -801,9 +818,9 @@ function ApplicationModal({ person, onClose, onUpdate }) {
   }, []);
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Advisor application" style={{ position:"fixed", inset:0, zIndex:1000, background:"rgba(0,0,0,0.75)", display:"flex", alignItems:"flex-start", justifyContent:"center", padding:"2rem", overflowY:"auto" }}
+    <div role="dialog" aria-modal="true" aria-label="Advisor application" style={{ position:"fixed", inset:0, zIndex:1000, background: isMobile ? DARK_BG : "rgba(0,0,0,0.75)", display:"flex", alignItems:"flex-start", justifyContent:"center", padding: isMobile ? 0 : "2rem", overflowY:"auto" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ background:DARK_BG, border:"1px solid "+BORDER, borderRadius:10, width:"100%", maxWidth:900 }}>
+      <div style={{ background:DARK_BG, border: isMobile ? "none" : "1px solid "+BORDER, borderRadius: isMobile ? 0 : 10, width:"100%", maxWidth: isMobile ? "100%" : 900, minHeight: isMobile ? "100vh" : "auto" }}>
         {/* Header */}
         <div style={{ padding:"1.5rem 2rem", borderBottom:"1px solid "+BORDER, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div style={{ display:"flex", gap:14, alignItems:"center" }}>
@@ -940,6 +957,8 @@ function ApplicationModal({ person, onClose, onUpdate }) {
 
 // ─── Side Panel ───────────────────────────────────────────────────────────────
 function SidePanel({ person, onClose, onUpdate }) {
+  const width = useWindowWidth();
+  const isMobile = width < 768;
   const [notes,     setNotes]     = useState(person.notes || "");
   const [editNotes, setEditNotes] = useState(false);
   const [status,    setStatus]    = useState(person.status);
@@ -947,7 +966,7 @@ function SidePanel({ person, onClose, onUpdate }) {
   const tabs = [{ id:"profile", label:"Profile" }, { id:"history", label:"Email History" }];
 
   return (
-    <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:6, overflow:"hidden", position:"sticky", top:0, maxHeight:"90vh", display:"flex", flexDirection:"column" }}>
+    <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius: isMobile ? 0 : 6, overflow:"hidden", position: isMobile ? "fixed" : "sticky", inset: isMobile ? 0 : "auto", top: isMobile ? 0 : 0, zIndex: isMobile ? 500 : "auto", maxHeight: isMobile ? "100vh" : "90vh", display:"flex", flexDirection:"column" }}>
       <div style={{ padding:"1rem 1.25rem", borderBottom:"1px solid "+BORDER, flexShrink:0 }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"0.75rem" }}>
           <div style={{ display:"flex", gap:10, alignItems:"center" }}>
@@ -1092,6 +1111,8 @@ function RowMenu({ archived, onArchive, onRestore, onDelete, onUnsubscribe, isUn
 
 // ─── Subscribers Tab ──────────────────────────────────────────────────────────
 function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
+  const width = useWindowWidth();
+  const isMobile = width < 768;
   const [subs,         setSubs]         = useState(MOCK_SUBSCRIBERS);
   const [search,       setSearch]       = useState("");
   const [subsView,     setSubsView]     = useState("list");
@@ -1314,7 +1335,7 @@ function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
       })()}
 
       {/* List view */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(6,1fr)", gap:10, marginBottom:"1.5rem", visibility: subsView === "list" ? "visible" : "hidden", height: subsView === "list" ? "auto" : 0, overflow:"hidden" }}>
+      <div style={{ display: subsView === "list" ? "grid" : "none", gridTemplateColumns: isMobile ? "repeat(3,1fr)" : "repeat(6,1fr)", gap:10, marginBottom:"1.5rem" }}>
         {stats.map(({ label, value, onClick }) => (
           <div key={label} onClick={onClick} style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:4, padding:"12px 16px", cursor:"pointer" }}>
             <div style={{ fontSize:10, fontFamily:font, fontWeight:500, letterSpacing:"0.1em", textTransform:"uppercase", color:TEXT_MUTED, marginBottom:4 }}>{label}</div>
@@ -1579,8 +1600,8 @@ function PipelineTab() {
           </div>
         ))}
       </div>
-      <div style={{ border:"1px solid "+BORDER, borderRadius:6, overflow:"hidden" }}>
-        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12, tableLayout:"fixed" }}>
+      <div style={{ border:"1px solid "+BORDER, borderRadius:6, overflowX: isMobile ? "auto" : "hidden" }}>
+        <table style={{ width:"100%", minWidth: isMobile ? 600 : "auto", borderCollapse:"collapse", fontSize:12, tableLayout:"fixed" }}>
           <colgroup><col style={{ width:"18%" }}/><col style={{ width:"14%" }}/><col style={{ width:"17%" }}/><col style={{ width:"17%" }}/><col style={{ width:"17%" }}/><col style={{ width:"17%" }}/></colgroup>
           <thead>
             <tr style={{ background:DARK_CARD2 }}>
@@ -1626,8 +1647,10 @@ function PipelineTab() {
 
 // ─── Documents Tab ───────────────────────────────────────────────────────────
 function DocsTab() {
+  const width = useWindowWidth();
+  const isMobile = width < 768;
   return (
-    <div style={{ padding:"32px 40px", maxWidth:900, margin:"0 auto" }}>
+    <div style={{ padding: isMobile ? "16px" : "32px 40px", maxWidth:900, margin:"0 auto" }}>
       <div style={{ fontFamily:serif, fontSize:26, fontWeight:300, color:GOLD, letterSpacing:"0.02em", marginBottom:8 }}>Documents</div>
       <div style={{ fontSize:13, color:TEXT_MUTED, marginBottom:32 }}>Advisor onboarding documents — NDA, Advisor Agreement, and platform policies</div>
 
@@ -1763,8 +1786,8 @@ function SendLogTab() {
           <button onClick={() => setSelectedIds(new Set())} style={{ marginLeft:"auto", background:"none", border:"none", color:TEXT_MUTED, cursor:"pointer", fontSize:11, fontFamily:font }}>Clear</button>
         </div>
       )}
-      <div style={{ border:"1px solid "+BORDER, borderRadius:6, overflow:"hidden" }}>
-        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12, tableLayout:"fixed" }}>
+      <div style={{ border:"1px solid "+BORDER, borderRadius:6, overflowX: isMobile ? "auto" : "hidden" }}>
+        <table style={{ width:"100%", minWidth: isMobile ? 600 : "auto", borderCollapse:"collapse", fontSize:12, tableLayout:"fixed" }}>
           <colgroup>
             <col style={{ width:"3%" }}/><col style={{ width:"12%" }}/><col style={{ width:"16%" }}/>
             <col style={{ width:"15%" }}/><col style={{ width:"15%" }}/><col style={{ width:"9%" }}/>
@@ -2025,6 +2048,8 @@ function PromoCodeDetail({ code, onBack, onUpdate }) {
 }
 
 function PromoCodesTab({ codes, setCodes }) {
+  const width = useWindowWidth();
+  const isMobile = width < 768;
   const [search, setSearch]         = useState("");
   const [filter, setFilter]         = useState("All");
   const [selectedCode, setSelectedCode] = useState(null);
@@ -2077,7 +2102,7 @@ function PromoCodesTab({ codes, setCodes }) {
   const presaleUses = codes.filter(c=>c.type==="Presale").reduce((a,c)=>a+c.uses,0);
 
   return (
-    <div style={{ padding:"28px 40px", maxWidth:1200, margin:"0 auto" }}>
+    <div style={{ padding: isMobile ? "16px" : "28px 40px", maxWidth:1200, margin:"0 auto" }}>
       <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:24 }}>
         <div>
           <div style={{ fontFamily:serif, fontSize:26, fontWeight:300, color:GOLD, letterSpacing:"0.02em" }}>Promo Codes</div>
@@ -2089,7 +2114,7 @@ function PromoCodesTab({ codes, setCodes }) {
         </div>
       </div>
 
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:14, marginBottom:24 }}>
+      <div style={{ display:"grid", gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(5,1fr)", gap: isMobile ? 10 : 14, marginBottom: isMobile ? 16 : 24 }}>
         {[{label:"Total codes",value:codes.length},{label:"Active",value:activeCodes},{label:"Total uses",value:totalUses},{label:"Campaigns",value:campaigns},{label:"Presale uses",value:presaleUses}].map(s => (
           <div key={s.label} style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:8, padding:"14px 18px" }}>
             <div style={{ fontSize:22, fontWeight:600, color:GOLD, fontFamily:mono }}>{s.value}</div>
@@ -2106,8 +2131,8 @@ function PromoCodesTab({ codes, setCodes }) {
         ))}
       </div>
 
-      <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:8, overflow:"hidden" }}>
-        <table style={{ width:"100%", borderCollapse:"collapse", tableLayout:"fixed" }}>
+      <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:8, overflowX: isMobile ? "auto" : "hidden" }}>
+        <table style={{ width:"100%", minWidth: isMobile ? 700 : "auto", borderCollapse:"collapse", tableLayout:"fixed" }}>
           <thead>
             <tr style={{ borderBottom:"1px solid "+BORDER }}>
               {[["Code","17%"],["Type","9%"],["Unlocks","8%"],["Value","8%"],["Uses","11%"],["Link","14%"],["Expires","9%"],["Campaign","8%"],["Status","8%"],["","8%"]].map(([h,w]) => (
@@ -2241,6 +2266,8 @@ function PromoCodesTab({ codes, setCodes }) {
 
 
 function SettingsTab() {
+  const width = useWindowWidth();
+  const isMobile = width < 768;
   const [saved, setSaved]     = useState(false);
   const [testing, setTesting] = useState(false);
   const [serverStatus, setServerStatus] = useState(null);
@@ -2259,7 +2286,7 @@ function SettingsTab() {
   }
 
   return (
-    <div style={{ padding:"32px 40px", maxWidth:640 }}>
+    <div style={{ padding: isMobile ? "16px" : "32px 40px", maxWidth:640 }}>
       <div style={{ fontFamily:serif, fontSize:26, fontWeight:300, color:GOLD, letterSpacing:"0.02em", marginBottom:28 }}>Settings</div>
 
       {/* Server status */}
@@ -2347,6 +2374,9 @@ function Dashboard({ currentUser, onSignOut }) {
     try { localStorage.setItem("sidekix-theme", theme); } catch(e) {}
   }, [theme]);
   const [promoCodes, setPromoCodes] = useState(INITIAL_CODES);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const width = useWindowWidth();
+  const isMobile = width < 768;
 
   // Apply theme tokens globally before each render
   const t = THEMES[theme];
@@ -2373,31 +2403,55 @@ function Dashboard({ currentUser, onSignOut }) {
     <ToastProvider>
     <div style={{ minHeight:"100vh", background:DARK_BG, color:TEXT_PRIMARY, fontFamily:font }} key={theme}>
       {/* Nav */}
-      <div style={{ borderBottom:"1px solid "+BORDER, padding:"0 40px", display:"flex", alignItems:"center", justifyContent:"space-between", background:DARK_CARD }}>
-        <div style={{ display:"flex", alignItems:"center", gap:32 }}>
-          <div style={{ fontFamily:serif, fontSize:22, fontWeight:300, color:GOLD, padding:"14px 0", letterSpacing:"0.04em" }}>
-            SideKix<span style={{ fontSize:10, color:TEXT_MUTED, fontFamily:font, fontWeight:400, marginLeft:6, letterSpacing:"0.1em", textTransform:"uppercase" }}>Team Portal</span>
+      <div style={{ borderBottom:"1px solid "+BORDER, padding: isMobile ? "0 16px" : "0 40px", display:"flex", alignItems:"center", justifyContent:"space-between", background:DARK_CARD, position:"sticky", top:0, zIndex:100 }}>
+        <div style={{ display:"flex", alignItems:"center", gap: isMobile ? 0 : 32, flex:1 }}>
+          <div style={{ fontFamily:serif, fontSize: isMobile ? 18 : 22, fontWeight:300, color:GOLD, padding:"14px 0", letterSpacing:"0.04em", flexShrink:0 }}>
+            SideKix{!isMobile && <span style={{ fontSize:10, color:TEXT_MUTED, fontFamily:font, fontWeight:400, marginLeft:6, letterSpacing:"0.1em", textTransform:"uppercase" }}>Team Portal</span>}
           </div>
-          <nav style={{ display:"flex", gap:0 }}>
-            {TABS.map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                style={{ padding:"16px 18px", background:"none", border:"none", borderBottom: tab===t.id ? "2px solid "+GOLD : "2px solid transparent", color: tab===t.id ? GOLD : TEXT_MUTED, fontSize:12, fontWeight: tab===t.id ? 600 : 400, cursor:"pointer", fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase" }}>
-                {t.label}
-              </button>
-            ))}
-          </nav>
+          {!isMobile && (
+            <nav style={{ display:"flex", gap:0 }}>
+              {TABS.map(t => (
+                <button key={t.id} onClick={() => setTab(t.id)}
+                  style={{ padding:"16px 14px", background:"none", border:"none", borderBottom: tab===t.id ? "2px solid "+GOLD : "2px solid transparent", color: tab===t.id ? GOLD : TEXT_MUTED, fontSize:11, fontWeight: tab===t.id ? 600 : 400, cursor:"pointer", fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", whiteSpace:"nowrap" }}>
+                  {t.label}
+                </button>
+              ))}
+            </nav>
+          )}
         </div>
-        <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-          <span style={{ fontSize:12, color:TEXT_MUTED, fontFamily:mono }}>{currentUser}</span>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <button onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}
             aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             style={{ fontSize:16, padding:"6px 10px", background:"none", border:"1px solid "+BORDER, borderRadius:4, color:TEXT_MUTED, cursor:"pointer", lineHeight:1 }}>
             {theme === "dark" ? "☀" : "☾"}
           </button>
-          <button onClick={onSignOut} style={{ fontSize:11, padding:"6px 14px", background:"none", border:"1px solid "+BORDER, borderRadius:4, color:TEXT_MUTED, cursor:"pointer", fontFamily:font, letterSpacing:"0.06em", textTransform:"uppercase" }}>Sign Out</button>
+          {!isMobile && <span style={{ fontSize:12, color:TEXT_MUTED, fontFamily:mono }}>{currentUser}</span>}
+          {!isMobile && <button onClick={onSignOut} style={{ fontSize:11, padding:"6px 14px", background:"none", border:"1px solid "+BORDER, borderRadius:4, color:TEXT_MUTED, cursor:"pointer", fontFamily:font, letterSpacing:"0.06em", textTransform:"uppercase" }}>Sign Out</button>}
+          {isMobile && (
+            <button onClick={() => setMobileNavOpen(o => !o)}
+              style={{ background:"none", border:"1px solid "+BORDER, borderRadius:4, padding:"6px 10px", color:TEXT_MUTED, cursor:"pointer", fontSize:18, lineHeight:1 }}>
+              ☰
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Mobile nav drawer */}
+      {isMobile && mobileNavOpen && (
+        <div style={{ background:DARK_CARD, borderBottom:"1px solid "+BORDER, padding:"8px 0" }}>
+          {TABS.map(t => (
+            <button key={t.id} onClick={() => { setTab(t.id); setMobileNavOpen(false); }}
+              style={{ display:"block", width:"100%", padding:"12px 20px", background: tab===t.id ? "rgba(201,169,110,0.1)" : "none", border:"none", borderLeft: tab===t.id ? "3px solid "+GOLD : "3px solid transparent", color: tab===t.id ? GOLD : TEXT_SECONDARY, fontSize:13, fontWeight: tab===t.id ? 600 : 400, cursor:"pointer", fontFamily:font, textAlign:"left" }}>
+              {t.label}
+            </button>
+          ))}
+          <div style={{ padding:"12px 20px", borderTop:"1px solid "+BORDER, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <span style={{ fontSize:11, color:TEXT_MUTED, fontFamily:mono }}>{currentUser}</span>
+            <button onClick={onSignOut} style={{ fontSize:11, padding:"6px 14px", background:"none", border:"1px solid "+BORDER, borderRadius:4, color:TEXT_MUTED, cursor:"pointer" }}>Sign Out</button>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <div>
