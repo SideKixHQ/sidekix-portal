@@ -49,6 +49,7 @@ const SOURCE_COLORS = {
   Subscriber:   { bg: "rgba(201,169,110,0.12)", color: "#C9A96E", border: "rgba(201,169,110,0.3)" },
   Application:  { bg: "rgba(100,160,220,0.12)", color: "#7EB8E8", border: "rgba(100,160,220,0.3)" },
   Contact:      { bg: "rgba(140,200,140,0.12)", color: "#8EC88E", border: "rgba(140,200,140,0.3)" },
+  Waitlist:     { bg: "rgba(180,100,220,0.12)", color: "#C87EE8", border: "rgba(180,100,220,0.3)" },
 };
 const STATUS_COLORS = {
   Active:       { bg: "rgba(100,200,100,0.1)",  color: "#7EC87E", border: "rgba(100,200,100,0.25)" },
@@ -179,6 +180,7 @@ const MOCK_SUBSCRIBERS = [
       whyAdvisor:"SideKix has the potential to change who gets access to real business knowledge." }},
   { id:10, firstName:"Tom",    lastName:"Walsh",    email:"tom@media.co",       source:"Contact",     status:"Bounced",      joined:"May 6, 2026",  tags:["General Inquiry"],   notes:"", application:null },
   { id:11, firstName:"Zara",   lastName:"Collins",  email:"zara@brandco.com",   source:"Subscriber",  status:"Active",       joined:"May 5, 2026",  tags:["Newsletter"],        notes:"", application:null },
+  { id:13, firstName:"Taylor", lastName:"Brooks",   email:"taylor@example.com", source:"Waitlist",    status:"Active",       joined:"May 15, 2026", tags:["Waitlist"],          notes:"", application:null },
   { id:12, firstName:"Marcus", lastName:"Ellis",    email:"marcus@fundco.io",   source:"Application", status:"Active",       joined:"May 4, 2026",  tags:["Advisor Applicant"], notes:"Follow up re: onboarding",
     reviewStatus:"Approved", assignedTo:["james@sidekixhq.com","sarah@sidekixhq.com"],
     statusHistory:[{ status:"Pending", date:"2026-05-04" },{ status:"Under Review", date:"2026-05-05" },{ status:"Interview", date:"2026-05-06" },{ status:"Approved", date:"2026-05-08" }],
@@ -192,7 +194,7 @@ const MOCK_SUBSCRIBERS = [
 ];
 
 const TEMPLATE_ORDER = ["application","subscriber","contact","waitlist","nurture3","nurture7","nurture14"];
-const ALL_SOURCES    = ["All sources","Subscriber","Application","Contact"];
+const ALL_SOURCES    = ["All sources","Subscriber","Application","Contact","Waitlist"];
 const ALL_STATUSES   = ["All statuses","Active","Unsubscribed","Bounced"];
 const ALL_REVIEW     = ["All reviews","Pending","Under Review","Interview","Approved","Rejected","On Hold"];
 const ALL_SORT       = ["Newest first","Oldest first","Name A-Z","Name Z-A"];
