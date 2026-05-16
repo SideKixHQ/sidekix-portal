@@ -119,6 +119,13 @@ const INITIAL_TEMPLATES = {
     body: "Hi {{first_name}},\n\nThis is the last email we'll send for now.\n\nThe people who get the most out of SideKix are the ones who decided to stop going it alone. If that ever sounds like you, we'll be at sidekixhq.com.\n\nWishing you the best,\nJames\nFounder, SideKix\n\nP.S. We don't delete accounts — come back anytime." + UNSUB_MEMBER,
     active: false,
   },
+  waitlist: {
+    id: "waitlist", label: "Waitlist Confirmation", routedTo: "joinus@sidekixhq.com",
+    trigger: "User joins the waitlist",
+    subject: "You're on the SideKix waitlist, {{first_name}}!",
+    body: "Hi {{first_name}},\n\nYou're officially on the SideKix waitlist — and you're in good company.\n\nWe're building something that will change how entrepreneurs get support, and you'll be among the first to know when we launch.\n\nWhat's coming:\n- Access to vetted advisors who've built real businesses\n- Personalized guidance at every stage\n- A community of founders who get it\n\nAs a waitlist member, you'll get early access and our best launch pricing.\n\nStay tuned — big things are coming.\n\nJames\nFounder, SideKix\n\nP.S. Use code WAITLIST20 for 20% off any membership when we launch." + UNSUB_MEMBER,
+    active: true,
+  },
 };
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -184,14 +191,14 @@ const MOCK_SUBSCRIBERS = [
       whyAdvisor:"Fundraising is one of the most opaque parts of building a company. I want to change that." }},
 ];
 
-const TEMPLATE_ORDER = ["application","subscriber","contact","nurture3","nurture7","nurture14"];
+const TEMPLATE_ORDER = ["application","subscriber","contact","waitlist","nurture3","nurture7","nurture14"];
 const ALL_SOURCES    = ["All sources","Subscriber","Application","Contact"];
 const ALL_STATUSES   = ["All statuses","Active","Unsubscribed","Bounced"];
 const ALL_REVIEW     = ["All reviews","Pending","Under Review","Interview","Approved","Rejected","On Hold"];
 const ALL_SORT       = ["Newest first","Oldest first","Name A-Z","Name Z-A"];
 const LOG_TYPES      = ["All emails","Subscriber emails","Advisor emails"];
 const LOG_STATUSES   = ["All statuses","Delivered","Bounced","Unsubscribed"];
-const VARS           = ["{{first_name}}","{{last_name}}","{{email}}","{{expertise}}"];
+const VARS           = ["{{first_name}}","{{last_name}}","{{email}}","{{expertise}}","{{promo_code}}"];
 
 // ─── Style helpers ────────────────────────────────────────────────────────────
 const lbl = { fontSize:11, fontWeight:500, color:TEXT_MUTED, letterSpacing:"0.1em", textTransform:"uppercase", display:"block", marginBottom:6, fontFamily:font };
