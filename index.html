@@ -120,6 +120,13 @@ const INITIAL_TEMPLATES = {
     body: "Hi {{first_name}},\n\nThis is the last email we'll send for now.\n\nThe people who get the most out of SideKix are the ones who decided to stop going it alone. If that ever sounds like you, we'll be at sidekixhq.com.\n\nWishing you the best,\nJames\nFounder, SideKix\n\nP.S. We don't delete accounts — come back anytime." + UNSUB_MEMBER,
     active: false,
   },
+  offer: {
+    id: "offer", label: "Advisor Offer", routedTo: "Advisors@sidekixhq.com",
+    trigger: "Advisor application moved to Offer status",
+    subject: "Congratulations {{first_name}} — you've been selected as a SideKix Advisor",
+    body: "Hi {{first_name}},\n\nWe're thrilled to let you know that you've been selected to join the SideKix Advisor Network.\n\nYour experience and expertise are exactly what our members need — and we can't wait to have you on the team.\n\nNext step: Please review and sign your Advisor Agreement using the link below.\n\nhttps://sidekixhq.github.io/sidekix-docs/\n\nThe agreement takes just a few minutes to complete. Once signed, we'll be in touch with everything you need to get started.\n\nWelcome to the team,\nJames\nFounder, SideKix\n\n---\nTo unsubscribe: https://sidekix-email-server.onrender.com/unsubscribe?email={{email}}\nSideKix - Character Limit LLC - Wilmington, NC",
+    active: true,
+  },
   waitlist: {
     id: "waitlist", label: "Waitlist Confirmation", routedTo: "joinus@sidekixhq.com",
     trigger: "User joins the waitlist",
@@ -193,7 +200,7 @@ const MOCK_SUBSCRIBERS = [
       whyAdvisor:"Fundraising is one of the most opaque parts of building a company. I want to change that." }},
 ];
 
-const TEMPLATE_ORDER = ["application","subscriber","contact","waitlist","nurture3","nurture7","nurture14"];
+const TEMPLATE_ORDER = ["application","offer","subscriber","contact","waitlist","nurture3","nurture7","nurture14"];
 const ALL_SOURCES    = ["All sources","Subscriber","Application","Contact","Waitlist"];
 const ALL_STATUSES   = ["All statuses","Active","Unsubscribed","Bounced"];
 const ALL_REVIEW     = ["All reviews","Pending","Under Review","Interview","Approved","Rejected","On Hold"];
@@ -605,6 +612,19 @@ function ApplicationModal({ person, onClose, onUpdate }) {
     setReview(s); onUpdate(person.id, { reviewStatus: s });
     if (s === "Interview") setShowInv(true);
     if (s === "Rejected")  setShowRej(true);
+    if (s === "Offer") {
+      const tpl = INITIAL_TEMPLATES.offer;
+      const email = person.email;
+      const firstName = person.firstName || "";
+      const subject = tpl.subject.replace(/\{\{first_name\}\}/g, firstName).replace(/\{\{email\}\}/g, email);
+      const body    = tpl.body.replace(/\{\{first_name\}\}/g, firstName).replace(/\{\{email\}\}/g, email);
+      fetch(SERVER_URL + "/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-SideKix-Secret": SERVER_SECRET },
+        body: JSON.stringify({ to: email, from: tpl.routedTo, fromName: "SideKix Advisors", subject, body }),
+      }).then(() => alert("Offer email sent to " + email))
+        .catch(() => alert("Failed to send offer email"));
+    }
   }
 
   return (
@@ -640,7 +660,7 @@ function ApplicationModal({ person, onClose, onUpdate }) {
                 <div style={{ marginBottom:"1.25rem", padding:14, background:DARK_CARD, borderRadius:6, border:"1px solid "+BORDER }}>
                   <label style={{ ...lbl, marginBottom:10 }}>Review Decision</label>
                   <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:(review === "Interview" || review === "Rejected") ? 12 : 0 }}>
-                    {["Pending","Under Review","Interview","Approved","Rejected","On Hold"].map(s => {
+                    {["Pending","Under Review","Interview","Approved","Offer","Rejected","On Hold"].map(s => {
                       const c = REVIEW_COLORS[s];
                       return <button key={s} onClick={() => handleReview(s)} style={{ fontSize:11, padding:"6px 14px", borderRadius:4, border:"1px solid "+(review === s ? c.border : BORDER), background:review === s ? c.bg : "transparent", color:review === s ? c.color : TEXT_MUTED, cursor:"pointer", fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", transition:"all 0.15s" }}>{s}</button>;
                     })}
