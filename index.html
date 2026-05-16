@@ -180,53 +180,22 @@ const MOCK_SEND_LOG = [
 ];
 
 const MOCK_SUBSCRIBERS = [
-  { id:1,  firstName:"Sarah",  lastName:"Mitchell", email:"sarah@example.com",  source:"Subscriber",  status:"Active",       joined:"May 14, 2026", tags:["Newsletter"],        notes:"", application:null },
-  { id:2,  firstName:"Mike",   lastName:"Acevedo",  email:"mike@acme.co",       source:"Application", status:"Active",       joined:"May 14, 2026", tags:["Advisor Applicant"], notes:"Strong finance background",
-    reviewStatus:"Pending", assignedTo:[], statusHistory:[{ status:"Pending", date:"2026-05-14" }],
-    application:{ city:"Austin, TX", zip:"78701", phone:"512-555-0192", website:"https://mikeacevedo.com", socialHandles:"https://instagram.com/mikeacevedo",
-      background:["Founder (built or exited a business)","Corporate Leader (Director / VP / Manager)"], yearsOwner:"7-15 years", businessTypes:["Technology / SaaS","Service-based"], priorAdvisor:"Yes",
-      expertise:["Finance & Budgeting","Funding & Investment","Business Planning","Operations & Scaling"], strengths:["Business Model Design","Goal Setting","Prioritization","Leadership Mindset"],
-      linkedin:"https://linkedin.com/in/mikeacevedo", languages:["English","Spanish"],
-      resume:"https://sidekixhq.com/uploads/mike_acevedo_resume.pdf", resumeName:"mike_acevedo_resume.pdf",
-      challenge:"I scaled a SaaS company from $0 to $4M ARR in 3 years before a strategic acquisition. The biggest challenge was building a team during hypergrowth.",
-      whyAdvisor:"I want to be the advisor I wish I had when I was building." }},
-  { id:3,  firstName:"Jen",    lastName:"Torres",   email:"jen@startup.io",     source:"Contact",     status:"Active",       joined:"May 13, 2026", tags:["General Inquiry"],   notes:"", application:null },
-  { id:4,  firstName:"Carlos", lastName:"Reyes",    email:"carlos@example.com", source:"Subscriber",  status:"Bounced",      joined:"May 12, 2026", tags:["Newsletter"],        notes:"Hard bounce — bad address", application:null },
-  { id:5,  firstName:"Priya",  lastName:"Sharma",   email:"priya@techco.com",   source:"Subscriber",  status:"Unsubscribed",  joined:"May 11, 2026", tags:["Newsletter"],        notes:"", application:null },
-  { id:6,  firstName:"Dan",    lastName:"Kovacs",   email:"dan@venture.co",     source:"Application", status:"Active",       joined:"May 10, 2026", tags:["Advisor Applicant"], notes:"",
-    reviewStatus:"Approved", assignedTo:["james@sidekixhq.com"],
-    statusHistory:[{ status:"Pending", date:"2026-05-10" },{ status:"Under Review", date:"2026-05-11" },{ status:"Interview", date:"2026-05-13" },{ status:"Approved", date:"2026-05-14" }],
-    application:{ city:"Chicago, IL", zip:"60601", phone:"312-555-0177", website:"https://dankovacs.co", socialHandles:"https://twitter.com/dankovacs_biz",
-      background:["Fractional Leader (COO/CMO/CFO/etc.)","Coach or Consultant"], yearsOwner:"15+ years", businessTypes:["Service-based","Real Estate"], priorAdvisor:"Yes",
-      expertise:["Operations & Scaling","Team & Leadership Development","HR & Recruitment","Branding & Positioning"], strengths:["Networking & Relationship Building","Emotional Intelligence","Adaptability","Listening"],
-      linkedin:"https://linkedin.com/in/dankovacs", languages:["English"],
-      resume:"https://sidekixhq.com/uploads/dan_kovacs_cv.pdf", resumeName:"dan_kovacs_cv.pdf",
-      challenge:"Rebuilt a 40-person operations team after a major client loss wiped out 60% of revenue. We had 90 days of runway.",
-      whyAdvisor:"Business owners in a crisis often just need one experienced person to talk to. I want to be that person." }},
-  { id:7,  firstName:"Nina",   lastName:"Okafor",   email:"nina@agency.com",    source:"Contact",     status:"Active",       joined:"May 9, 2026",  tags:["Partnership Inquiry"],notes:"", application:null },
-  { id:8,  firstName:"Leo",    lastName:"Park",     email:"leo@designco.com",   source:"Subscriber",  status:"Active",       joined:"May 8, 2026",  tags:["Newsletter","Beta"],  notes:"Requested early access", application:null },
-  { id:9,  firstName:"Amara",  lastName:"Diallo",   email:"amara@consult.io",   source:"Application", status:"Active",       joined:"May 7, 2026",  tags:["Advisor Applicant"], notes:"",
-    reviewStatus:"On Hold", assignedTo:[],
-    statusHistory:[{ status:"Pending", date:"2026-05-07" },{ status:"Under Review", date:"2026-05-09" },{ status:"On Hold", date:"2026-05-12" }],
-    application:{ city:"Atlanta, GA", zip:"30301", phone:"404-555-0134", website:"", socialHandles:"https://instagram.com/amaradiallo",
-      background:["University Mentor / Ecosystem Advisor or Leader","Small Business Owner"], yearsOwner:"3-7 years", businessTypes:["Creative / Media","Service-based"], priorAdvisor:"Yes",
-      expertise:["Marketing & Sales","Branding & Positioning","Customer Acquisition","Customer Experience & Retention"], strengths:["Visionary Thinking & Purpose","Creative Problem Solving","Self-Awareness","Resilience"],
-      linkedin:"https://linkedin.com/in/amaradiallo", languages:["English","French"], resume:"", resumeName:"",
-      challenge:"Launched a creative agency during COVID with no clients and no network in a new city. I cold-pitched 200 businesses in 60 days.",
-      whyAdvisor:"SideKix has the potential to change who gets access to real business knowledge." }},
-  { id:10, firstName:"Tom",    lastName:"Walsh",    email:"tom@media.co",       source:"Contact",     status:"Bounced",      joined:"May 6, 2026",  tags:["General Inquiry"],   notes:"", application:null },
-  { id:11, firstName:"Zara",   lastName:"Collins",  email:"zara@brandco.com",   source:"Subscriber",  status:"Active",       joined:"May 5, 2026",  tags:["Newsletter"],        notes:"", application:null },
-  { id:13, firstName:"Taylor", lastName:"Brooks",   email:"taylor@example.com", source:"Waitlist",    status:"Active",       joined:"May 15, 2026", tags:["Waitlist"],          notes:"", application:null },
-  { id:12, firstName:"Marcus", lastName:"Ellis",    email:"marcus@fundco.io",   source:"Application", status:"Active",       joined:"May 4, 2026",  tags:["Advisor Applicant"], notes:"Follow up re: onboarding",
-    reviewStatus:"Approved", assignedTo:["james@sidekixhq.com","sarah@sidekixhq.com"],
-    statusHistory:[{ status:"Pending", date:"2026-05-04" },{ status:"Under Review", date:"2026-05-05" },{ status:"Interview", date:"2026-05-06" },{ status:"Approved", date:"2026-05-08" }],
-    application:{ city:"New York, NY", zip:"10001", phone:"212-555-0188", website:"https://marcusellis.io", socialHandles:"https://twitter.com/marcusellis",
-      background:["Founder (built or exited a business)","Coach or Consultant"], yearsOwner:"15+ years", businessTypes:["Technology / SaaS","Product-based","Service-based"], priorAdvisor:"Yes",
-      expertise:["Funding & Investment","Finance & Budgeting","Product Development","Operations & Scaling"], strengths:["Business Model Design","Customer Discovery","Lean Thinking","Prioritization"],
-      linkedin:"https://linkedin.com/in/marcusellis", languages:["English"],
-      resume:"https://sidekixhq.com/uploads/marcus_ellis_resume.pdf", resumeName:"marcus_ellis_resume.pdf",
-      challenge:"Raised a $2.5M seed round during a down market when every investor said no for 9 months. I rewrote the deck 11 times.",
-      whyAdvisor:"Fundraising is one of the most opaque parts of building a company. I want to change that." }},
+  { id:1,  firstName:"Marcus",  lastName:"Ellis",   email:"marcus@fundco.io",      source:"Application", status:"Active",       reviewStatus:"Approved", archived:false, tags:["Advisor Applicant"],  joined:"May 4, 2026",  assignedTo:["james"], notes:"",
+    statusHistory:[{status:"Pending",date:"2026-05-04"},{status:"Under Review",date:"2026-05-05"},{status:"Interview",date:"2026-05-07"},{status:"Approved",date:"2026-05-10"}],
+    city:"New York", state:"NY", zip:"10001", phone:"212-555-0188", website:"marcusellis.io", social:"twitter.com/marcusellis", linkedin:"linkedin.com/in/marcusellis",
+    background:["Founder (built or exited a business)","Coach or Consultant"], yearsOwner:"15+ years", priorAdvisor:"Yes", businessTypes:["Technology / SaaS","Product-based","Service-based"],
+    expertise:["Funding & Investment","Finance & Budgeting","Product Development","Operations & Scaling"], strengths:["Business Model Design","Customer Discovery","Lean Thinking","Prioritization"],
+    challenge:"Raised a $2.5M seed round during a down market when every investor said no for 9 months. I rewrote the deck 11 times.", whySidekix:"Fundraising is one of the most opaque parts of building a company. I want to change that.",
+    languages:["English"], resumeUrl:"", photo:"" },
+  { id:2,  firstName:"Taylor",  lastName:"Brooks",  email:"taylor@example.com",    source:"Waitlist",    status:"Active",       reviewStatus:null,       archived:false, tags:["Waitlist"],           joined:"May 15, 2026", assignedTo:[], notes:"", statusHistory:[], city:"", state:"", zip:"", phone:"", website:"", social:"", linkedin:"", background:[], yearsOwner:"", priorAdvisor:"", businessTypes:[], expertise:[], strengths:[], challenge:"", whySidekix:"", languages:[], resumeUrl:"", photo:"" },
+  { id:3,  firstName:"Zara",    lastName:"Collins", email:"zara@brandco.com",      source:"Subscriber",  status:"Active",       reviewStatus:null,       archived:false, tags:["Newsletter"],         joined:"May 5, 2026",  assignedTo:[], notes:"", statusHistory:[], city:"", state:"", zip:"", phone:"", website:"", social:"", linkedin:"", background:[], yearsOwner:"", priorAdvisor:"", businessTypes:[], expertise:[], strengths:[], challenge:"", whySidekix:"", languages:[], resumeUrl:"", photo:"" },
+  { id:4,  firstName:"Dan",     lastName:"Kovacs",  email:"dan@venture.co",        source:"Application", status:"Active",       reviewStatus:"Approved", archived:false, tags:["Advisor Applicant"],  joined:"May 10, 2026", assignedTo:["james"], notes:"",
+    statusHistory:[{status:"Pending",date:"2026-05-10"},{status:"Under Review",date:"2026-05-11"},{status:"Approved",date:"2026-05-13"}],
+    city:"Austin", state:"TX", zip:"78701", phone:"512-555-0199", website:"dankovacs.com", social:"", linkedin:"linkedin.com/in/dankovacs",
+    background:["Founder (built or exited a business)"], yearsOwner:"10-15 years", priorAdvisor:"No", businessTypes:["Technology / SaaS"],
+    expertise:["Go-to-Market Strategy","Sales & Revenue"], strengths:["Pipeline Building","Outbound Sales","CRM Strategy"],
+    challenge:"Took a B2B SaaS from $0 to $3M ARR in 18 months with a team of 4.", whySidekix:"Entrepreneurs need real operators, not just coaches.",
+    languages:["English"], resumeUrl:"", photo:"" },
 ];
 
 const TEMPLATE_ORDER = ["application","offer","subscriber","contact","waitlist","nurture3","nurture7","nurture14"];
@@ -304,6 +273,42 @@ function InfoField({ label, value, displayValue }) {
 }
 
 // ─── Login Gate ───────────────────────────────────────────────────────────────
+// ─── Toast notification system ───────────────────────────────────────────────
+const ToastContext = React.createContext(null);
+
+function ToastProvider({ children }) {
+  const [toasts, setToasts] = useState([]);
+  function showToast(message, type) {
+    const id = Date.now();
+    const kind = type || "success";
+    setToasts(prev => [...prev, { id, message, kind }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
+  }
+  return (
+    <ToastContext.Provider value={showToast}>
+      {children}
+      <div style={{ position:"fixed", bottom:24, right:24, zIndex:9999, display:"flex", flexDirection:"column", gap:8, pointerEvents:"none" }}>
+        {toasts.map(t => {
+          const isSuccess = t.kind === "success";
+          const isError   = t.kind === "error";
+          const bg     = isSuccess ? "rgba(100,200,100,0.15)" : isError ? "rgba(220,100,100,0.15)" : "rgba(201,169,110,0.15)";
+          const border = isSuccess ? "rgba(100,200,100,0.35)" : isError ? "rgba(220,100,100,0.35)" : "rgba(201,169,110,0.35)";
+          const color  = isSuccess ? "#7EC87E"                : isError ? "#E07070"                : GOLD;
+          const icon   = isSuccess ? "✓"                      : isError ? "✕"                      : "◆";
+          return (
+            <div key={t.id} style={{ background:DARK_CARD, border:"1px solid "+border, borderRadius:8, padding:"12px 18px", fontSize:13, color:color, fontFamily:font, display:"flex", alignItems:"center", gap:10, minWidth:260, maxWidth:380 }}>
+              <span style={{ fontWeight:700 }}>{icon}</span>
+              <span style={{ color:TEXT_PRIMARY }}>{t.message}</span>
+            </div>
+          );
+        })}
+      </div>
+    </ToastContext.Provider>
+  );
+}
+
+function useToast() { return React.useContext(ToastContext); }
+
 function LoginGate({ onAccess }) {
   const [email, setEmail] = useState("");
   const [pass,  setPass]  = useState("");
@@ -620,6 +625,7 @@ function EmailComposer({ isInvite, person, app, show, setShow, sent, setSent, su
 
 // ─── Application Modal ────────────────────────────────────────────────────────
 function ApplicationModal({ person, onClose, onUpdate }) {
+  const toast = useToast();
   const [notes,     setNotes]     = useState(person.notes || "");
   const [editNotes, setEditNotes] = useState(false);
   const [status,    setStatus]    = useState(person.status);
@@ -656,13 +662,19 @@ function ApplicationModal({ person, onClose, onUpdate }) {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-SideKix-Secret": SERVER_SECRET },
         body: JSON.stringify({ to: email, from: tpl.routedTo, fromName: "SideKix Advisors", subject, body }),
-      }).then(() => alert("✓ Onboarding documents sent to " + email))
-        .catch(() => alert("Failed to send offer email"));
+      }).then(() => toast && toast("Onboarding documents sent to " + firstName, "success"))
+        .catch(() => toast && toast("Failed to send offer email", "error"));
     }
   }
 
+  useEffect(() => {
+    function onKey(e) { if (e.key === "Escape") onClose(); }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
-    <div style={{ position:"fixed", inset:0, zIndex:1000, background:"rgba(0,0,0,0.75)", display:"flex", alignItems:"flex-start", justifyContent:"center", padding:"2rem", overflowY:"auto" }}
+    <div role="dialog" aria-modal="true" aria-label="Advisor application" style={{ position:"fixed", inset:0, zIndex:1000, background:"rgba(0,0,0,0.75)", display:"flex", alignItems:"flex-start", justifyContent:"center", padding:"2rem", overflowY:"auto" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={{ background:DARK_BG, border:"1px solid "+BORDER, borderRadius:10, width:"100%", maxWidth:900 }}>
         {/* Header */}
@@ -1285,7 +1297,8 @@ function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
       </div>{/* end list view */}
     {/* Promo Code Send Modal */}
     {showPromoModal && (
-      <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center" }} onClick={() => !promoSending && setShowPromoModal(false)}>
+      <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center" }} onClick={() => !promoSending && setShowPromoModal(false)}
+        onKeyDown={e => e.key === "Escape" && !promoSending && setShowPromoModal(false)}>
         <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:12, padding:32, width:440, maxWidth:"90vw" }} onClick={e => e.stopPropagation()}>
           <div style={{ fontFamily:serif, fontSize:20, fontWeight:300, color:GOLD, marginBottom:6 }}>Send Promo Code</div>
           <div style={{ fontSize:13, color:TEXT_MUTED, marginBottom:16 }}>
@@ -1940,7 +1953,7 @@ function PromoCodesTab({ codes, setCodes }) {
                   <td style={{ padding:"11px 12px" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:5 }}>
                       <span style={{ fontFamily:mono, fontSize:10, color:GOLD, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1 }}>…/join?code={c.code}</span>
-                      <button onClick={e => { e.stopPropagation(); navigator.clipboard?.writeText("https://sidekixhq.com/join?code="+c.code); }} title="Copy link" style={{ background:"none", border:"none", color:TEXT_MUTED, cursor:"pointer", fontSize:12, padding:"2px 4px", flexShrink:0 }}>⎘</button>
+                      <button onClick={e => { e.stopPropagation(); navigator.clipboard?.writeText("https://sidekixhq.com/join?code="+c.code); }} aria-label="Copy link" title="Copy link" style={{ background:"none", border:"none", color:TEXT_MUTED, cursor:"pointer", fontSize:12, padding:"2px 4px", flexShrink:0 }}>⎘</button>
                     </div>
                   </td>
                   <td style={{ padding:"11px 12px", fontSize:11, color:TEXT_SECONDARY, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.expires || "No expiry"}</td>
@@ -2140,7 +2153,12 @@ function SettingsTab() {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 function Dashboard({ currentUser, onSignOut }) {
   const [tab, setTab]       = useState("subscribers");
-  const [theme, setTheme]   = useState("dark");
+  const [theme, setTheme]   = useState(() => {
+    try { return localStorage.getItem("sidekix-theme") || "dark"; } catch(e) { return "dark"; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("sidekix-theme", theme); } catch(e) {}
+  }, [theme]);
   const [promoCodes, setPromoCodes] = useState(INITIAL_CODES);
 
   // Apply theme tokens globally before each render
@@ -2164,6 +2182,7 @@ function Dashboard({ currentUser, onSignOut }) {
   ];
 
   return (
+    <ToastProvider>
     <div style={{ minHeight:"100vh", background:DARK_BG, color:TEXT_PRIMARY, fontFamily:font }} key={theme}>
       {/* Nav */}
       <div style={{ borderBottom:"1px solid "+BORDER, padding:"0 40px", display:"flex", alignItems:"center", justifyContent:"space-between", background:DARK_CARD }}>
@@ -2183,6 +2202,7 @@ function Dashboard({ currentUser, onSignOut }) {
         <div style={{ display:"flex", alignItems:"center", gap:16 }}>
           <span style={{ fontSize:12, color:TEXT_MUTED, fontFamily:mono }}>{currentUser}</span>
           <button onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}
+            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             style={{ fontSize:16, padding:"6px 10px", background:"none", border:"1px solid "+BORDER, borderRadius:4, color:TEXT_MUTED, cursor:"pointer", lineHeight:1 }}>
             {theme === "dark" ? "☀" : "☾"}
@@ -2200,6 +2220,7 @@ function Dashboard({ currentUser, onSignOut }) {
         {tab === "settings"    && <SettingsTab />}
       </div>
     </div>
+    </ToastProvider>
   );
 }
 
