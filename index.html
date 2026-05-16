@@ -1364,6 +1364,7 @@ function Dashboard({ currentUser, onSignOut }) {
     { id:"templates",   label:"Templates"   },
     { id:"subscribers", label:"Subscribers" },
     { id:"pipeline",    label:"Pipeline"    },
+    { id:"promocodes",  label:"Promo Codes" },
     { id:"sendlog",     label:"Send Log"    },
     { id:"settings",    label:"Settings"    },
   ];
@@ -1391,10 +1392,541 @@ function Dashboard({ currentUser, onSignOut }) {
       {tab === "subscribers" && <SubscribersTab currentUser={currentUser} />}
       {tab === "pipeline"    && <PipelineTab />}
       {tab === "sendlog"     && <SendLogTab />}
-      {tab === "settings"    && <SettingsTab />}
+      {tab === "promocodes"  && <PromoCodesTab />}
+    {tab === "settings"    && <SettingsTab />}
     </div>
   );
 }
+
+// ─── Promo Codes Tab ──────────────────────────────────────────────────────────
+const INITIAL_CODES = [
+  { id:1, code:"FOUNDER20",  type:"Presale",  tier:"Core",    discountType:"% off",    value:"20", duration:"One-time", singleUse:true,  onePerEmail:true,  uses:8,  maxUses:50,  active:true,  starts:"",           expires:"2026-12-31", campaign:"Founder",  notes:"Founder pricing",           promoMsg:"You locked in founder pricing!",
+    assigned:[
+      { email:"jane@example.com",    name:"Jane Doe",     status:"redeemed", redeemedTier:"Core",    date:"May 14" },
+      { email:"marcus@fundco.io",    name:"Marcus Rivera", status:"redeemed", redeemedTier:"Core",    date:"May 15" },
+      { email:"sarah@startup.co",    name:"Sarah Lee",    status:"opened",   redeemedTier:"",        date:"" },
+      { email:"tom@biz.com",         name:"Tom Wilson",   status:"opened",   redeemedTier:"",        date:"" },
+      { email:"amy@ventures.io",     name:"Amy Chen",     status:"sent",     redeemedTier:"",        date:"" },
+    ]
+  },
+  { id:2, code:"WAITLIST10", type:"Discount", tier:"Any",     discountType:"% off",    value:"10", duration:"One-time", singleUse:false, onePerEmail:true,  uses:24, maxUses:200, active:true,  starts:"",           expires:"2026-12-31", campaign:"Waitlist", notes:"Waitlist discount",         promoMsg:"", assigned:[] },
+  { id:3, code:"TRIAL30",    type:"Trial",    tier:"Premium", discountType:"Free trial",value:"30 days", duration:"",  singleUse:false, onePerEmail:true,  uses:12, maxUses:50,  active:true,  starts:"",           expires:"2026-09-01", campaign:"",         notes:"30 day free trial",         promoMsg:"", assigned:[] },
+  { id:4, code:"ADVISOR25",  type:"Referral", tier:"Any",     discountType:"$ off",    value:"25", duration:"One-time", singleUse:false, onePerEmail:false, uses:3,  maxUses:null,active:true,  starts:"",           expires:"",           campaign:"Referral", notes:"Advisor referral reward",   promoMsg:"", assigned:[] },
+  { id:5, code:"CHAMBER50",  type:"Discount", tier:"Core",    discountType:"% off",    value:"50", duration:"One-time", singleUse:false, onePerEmail:true,  uses:0,  maxUses:30,  active:false, starts:"",           expires:"2026-08-01", campaign:"Founder",  notes:"Chamber of commerce promo", promoMsg:"", assigned:[] },
+];
+
+const CODE_TYPE_COLORS = {
+  Discount: { bg:"rgba(100,200,100,0.1)",  color:"#7EC87E", border:"rgba(100,200,100,0.25)" },
+  Trial:    { bg:"rgba(100,160,220,0.1)",  color:"#7EB8E8", border:"rgba(100,160,220,0.25)" },
+  Referral: { bg:"rgba(180,100,220,0.1)",  color:"#C87EE8", border:"rgba(180,100,220,0.3)"  },
+  Presale:  { bg:"rgba(201,169,110,0.12)", color:"#C9A96E", border:"rgba(201,169,110,0.3)"  },
+};
+
+const REDEMPTION_COLORS = {
+  redeemed: { dot:"#7EC87E", label:"Redeemed" },
+  opened:   { dot:"#C9A96E", label:"Opened · not redeemed" },
+  sent:     { dot:"#6B6454", label:"Not opened" },
+};
+
+function PromoCodeDetail({ code, onBack, onUpdate }) {
+  const [activeTab, setActiveTab] = useState("all");
+  const [assignEmail, setAssignEmail] = useState("");
+  const [showAssignDone, setShowAssignDone] = useState(false);
+
+  const redeemed = code.assigned.filter(a => a.status === "redeemed");
+  const opened   = code.assigned.filter(a => a.status === "opened");
+  const sent     = code.assigned.filter(a => a.status === "sent");
+  const notRedeemed = [...opened, ...sent];
+
+  const filteredAssigned = activeTab === "all" ? code.assigned
+    : activeTab === "redeemed" ? redeemed
+    : activeTab === "opened"   ? opened
+    : sent;
+
+  const convRate = code.assigned.length > 0 ? Math.round((redeemed.length / code.assigned.length) * 100) : 0;
+
+  function handleAssign() {
+    if (!assignEmail.trim()) return;
+    const updated = { ...code, assigned: [...code.assigned, { email:assignEmail, name:assignEmail.split("@")[0], status:"sent", redeemedTier:"", date:"" }] };
+    onUpdate(updated);
+    setAssignEmail("");
+    setShowAssignDone(true);
+    setTimeout(() => setShowAssignDone(false), 2000);
+  }
+
+  function handleRemind(email) {
+    alert("Reminder sent to " + email);
+  }
+
+  function handleRemindAll() {
+    alert("Reminder sent to " + notRedeemed.length + " people who haven't redeemed yet.");
+  }
+
+  const tc = CODE_TYPE_COLORS[code.type] || CODE_TYPE_COLORS.Discount;
+
+  return (
+    <div style={{ padding:"28px 40px" }}>
+      <button onClick={onBack} style={{ background:"none", border:"none", color:TEXT_MUTED, fontSize:13, cursor:"pointer", padding:"0 0 20px", display:"flex", alignItems:"center", gap:6 }}>
+        ← Promo codes / <span style={{ color:GOLD, fontFamily:mono }}>{code.code}</span>
+      </button>
+
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 300px", gap:20 }}>
+        {/* Main panel */}
+        <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:8, overflow:"hidden" }}>
+          {/* Header */}
+          <div style={{ padding:"16px 20px", borderBottom:"1px solid "+BORDER, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              <span style={{ fontFamily:mono, fontSize:20, fontWeight:600, color:GOLD, letterSpacing:"0.05em" }}>{code.code}</span>
+              <span style={{ background:tc.bg, color:tc.color, border:"1px solid "+tc.border, borderRadius:4, padding:"2px 9px", fontSize:11, fontWeight:600 }}>{code.type}</span>
+              <span style={{ background: code.active ? "rgba(100,200,100,0.1)" : "rgba(100,100,100,0.1)", color: code.active ? "#7EC87E" : TEXT_MUTED, border:"1px solid "+(code.active ? "rgba(100,200,100,0.3)" : BORDER), borderRadius:4, padding:"2px 9px", fontSize:11, fontWeight:600 }}>{code.active ? "Active" : "Paused"}</span>
+            </div>
+            <div style={{ display:"flex", gap:8 }}>
+              <button style={{ padding:"6px 14px", background:"none", border:"1px solid "+BORDER, borderRadius:6, color:TEXT_SECONDARY, fontSize:12, cursor:"pointer" }}>Edit</button>
+              <button onClick={() => onUpdate({...code, active:!code.active})} style={{ padding:"6px 14px", background:"none", border:"1px solid "+BORDER, borderRadius:6, color:TEXT_SECONDARY, fontSize:12, cursor:"pointer" }}>{code.active ? "Pause" : "Resume"}</button>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", borderBottom:"1px solid "+BORDER }}>
+            {[
+              { val:code.assigned.length, lbl:"Assigned" },
+              { val:redeemed.length,      lbl:"Redeemed" },
+              { val:opened.length,        lbl:"Opened" },
+              { val:convRate+"%",         lbl:"Conversion" },
+            ].map((s,i) => (
+              <div key={i} style={{ padding:"12px 16px", borderRight: i<3 ? "1px solid "+BORDER : "none" }}>
+                <div style={{ fontSize:20, fontWeight:600, color:GOLD, fontFamily:mono }}>{s.val}</div>
+                <div style={{ fontSize:11, color:TEXT_MUTED, marginTop:2 }}>{s.lbl}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Tabs */}
+          <div style={{ display:"flex", borderBottom:"1px solid "+BORDER, paddingLeft:8 }}>
+            {[
+              { id:"all",      label:"All ("+code.assigned.length+")" },
+              { id:"redeemed", label:"Redeemed ("+redeemed.length+")" },
+              { id:"opened",   label:"Opened, not redeemed ("+opened.length+")" },
+              { id:"sent",     label:"Not opened ("+sent.length+")" },
+            ].map(t => (
+              <button key={t.id} onClick={() => setActiveTab(t.id)}
+                style={{ padding:"10px 14px", background:"none", border:"none", borderBottom: activeTab===t.id ? "2px solid "+GOLD : "2px solid transparent", color: activeTab===t.id ? GOLD : TEXT_MUTED, fontSize:12, cursor:"pointer", fontWeight: activeTab===t.id ? 600 : 400, whiteSpace:"nowrap" }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Person list */}
+          {filteredAssigned.length === 0 ? (
+            <div style={{ padding:"32px", textAlign:"center", color:TEXT_MUTED, fontSize:13 }}>No contacts in this category</div>
+          ) : filteredAssigned.map((p, i) => {
+            const sc = REDEMPTION_COLORS[p.status];
+            return (
+              <div key={i} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 20px", borderBottom: i<filteredAssigned.length-1 ? "1px solid "+BORDER : "none" }}>
+                <div style={{ width:32, height:32, borderRadius:"50%", background:"rgba(201,169,110,0.15)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:600, color:GOLD, flexShrink:0 }}>
+                  {(p.name||p.email).slice(0,2).toUpperCase()}
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:13, color:TEXT_PRIMARY, fontWeight:500 }}>{p.name}</div>
+                  <div style={{ fontSize:11, color:TEXT_MUTED }}>{p.email}</div>
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:11, color:TEXT_MUTED, whiteSpace:"nowrap" }}>
+                  <span style={{ width:6, height:6, borderRadius:"50%", background:sc.dot, display:"inline-block" }}></span>
+                  {sc.label}{p.redeemedTier ? " · "+p.redeemedTier : ""}{p.date ? " · "+p.date : ""}
+                </div>
+                {p.status !== "redeemed" && (
+                  <button onClick={() => handleRemind(p.email)} style={{ padding:"4px 10px", background:"none", border:"1px solid "+BORDER, borderRadius:4, color:TEXT_MUTED, fontSize:11, cursor:"pointer", whiteSpace:"nowrap" }}>
+                    ↗ Remind
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Side panel */}
+        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+          {/* Code details */}
+          <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:8, padding:16 }}>
+            <div style={{ fontSize:11, fontWeight:600, color:TEXT_MUTED, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:12 }}>Code details</div>
+            {[
+              ["Applies to", code.tier],
+              ["Discount", code.discountType + (code.value ? " · " + code.value : "")],
+              ["Duration", code.duration || "—"],
+              ["Single use", code.singleUse ? "Yes" : "No"],
+              ["One per email", code.onePerEmail ? "Yes" : "No"],
+              ["Max uses", code.maxUses ? code.maxUses : "Unlimited"],
+              ["Expires", code.expires || "No expiry"],
+              ["Campaign", code.campaign || "—"],
+            ].map(([l,v]) => (
+              <div key={l} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:7 }}>
+                <span style={{ fontSize:12, color:TEXT_MUTED }}>{l}</span>
+                <span style={{ fontSize:12, color:TEXT_PRIMARY, fontWeight:500 }}>{v}</span>
+              </div>
+            ))}
+            {code.promoMsg && (
+              <div style={{ marginTop:8, padding:"8px 10px", background:"rgba(201,169,110,0.08)", borderRadius:6, fontSize:11, color:GOLD, fontStyle:"italic" }}>"{code.promoMsg}"</div>
+            )}
+            {code.maxUses && (
+              <div style={{ marginTop:10 }}>
+                <div style={{ height:4, background:BORDER, borderRadius:2 }}>
+                  <div style={{ height:4, background:GOLD, borderRadius:2, width:Math.round((code.uses/code.maxUses)*100)+"%" }} />
+                </div>
+                <div style={{ fontSize:11, color:TEXT_MUTED, marginTop:4 }}>{code.uses} of {code.maxUses} used</div>
+              </div>
+            )}
+          </div>
+
+          {/* Shareable link */}
+          <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:8, padding:16 }}>
+            <div style={{ fontSize:11, fontWeight:600, color:TEXT_MUTED, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:10 }}>Shareable link</div>
+            <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 10px", background:DARK_BG, borderRadius:6, border:"1px solid "+BORDER }}>
+              <span style={{ fontFamily:mono, fontSize:10, color:GOLD, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>sidekixhq.com/join?code={code.code}</span>
+              <button onClick={() => navigator.clipboard?.writeText("https://sidekixhq.com/join?code="+code.code)} style={{ padding:"3px 8px", background:"none", border:"1px solid "+BORDER, borderRadius:4, color:TEXT_MUTED, fontSize:10, cursor:"pointer" }}>Copy</button>
+            </div>
+          </div>
+
+          {/* Assign */}
+          <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:8, padding:16 }}>
+            <div style={{ fontSize:11, fontWeight:600, color:TEXT_MUTED, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:8 }}>Assign to someone</div>
+            <div style={{ fontSize:12, color:TEXT_MUTED, marginBottom:10 }}>Send this code to a specific person and track their redemption</div>
+            <div style={{ display:"flex", gap:8 }}>
+              <input value={assignEmail} onChange={e => setAssignEmail(e.target.value)} placeholder="email@example.com"
+                style={{ flex:1, padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:12, outline:"none" }} />
+              <button onClick={handleAssign} style={{ padding:"7px 14px", background:GOLD, border:"none", borderRadius:6, color:DARK_BG, fontSize:12, fontWeight:600, cursor:"pointer" }}>Send</button>
+            </div>
+            {showAssignDone && <div style={{ fontSize:11, color:"#7EC87E", marginTop:6 }}>Code sent!</div>}
+            {notRedeemed.length > 0 && (
+              <button onClick={handleRemindAll} style={{ width:"100%", marginTop:10, padding:"8px", background:"none", border:"1px solid "+BORDER, borderRadius:6, color:TEXT_MUTED, fontSize:12, cursor:"pointer" }}>
+                ↗ Remind all who haven't redeemed ({notRedeemed.length})
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PromoCodesTab() {
+  const [codes, setCodes]         = useState(INITIAL_CODES);
+  const [search, setSearch]       = useState("");
+  const [filter, setFilter]       = useState("All");
+  const [selectedCode, setSelectedCode] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing]     = useState(null);
+  const [form, setForm]           = useState({ code:"", type:"Discount", tier:"Any", discountType:"% off", value:"", duration:"One-time", singleUse:false, onePerEmail:true, maxUses:"", starts:"", expires:"", campaign:"", notes:"", promoMsg:"", bulkCount:"" });
+
+  const filtered = codes.filter(c => {
+    const q = search.toLowerCase();
+    const matchSearch = c.code.toLowerCase().includes(q) || c.notes.toLowerCase().includes(q) || c.campaign.toLowerCase().includes(q);
+    const matchFilter = filter === "All" || c.type === filter || (filter === "Active" && c.active) || (filter === "Inactive" && !c.active);
+    return matchSearch && matchFilter;
+  });
+
+  function openNew() {
+    setEditing(null);
+    setForm({ code:"", type:"Discount", tier:"Any", discountType:"% off", value:"", duration:"One-time", singleUse:false, onePerEmail:true, maxUses:"", starts:"", expires:"", campaign:"", notes:"", promoMsg:"", bulkCount:"" });
+    setShowModal(true);
+  }
+
+  function openEdit(c, e) {
+    e.stopPropagation();
+    setEditing(c.id);
+    setForm({ code:c.code, type:c.type, tier:c.tier, discountType:c.discountType, value:c.value, duration:c.duration, singleUse:c.singleUse, onePerEmail:c.onePerEmail, maxUses:c.maxUses||"", starts:c.starts||"", expires:c.expires||"", campaign:c.campaign||"", notes:c.notes||"", promoMsg:c.promoMsg||"", bulkCount:"" });
+    setShowModal(true);
+  }
+
+  function saveCode() {
+    if (!form.code.trim()) return;
+    if (editing) {
+      setCodes(p => p.map(c => c.id === editing ? { ...c, ...form, maxUses: form.maxUses ? parseInt(form.maxUses) : null } : c));
+    } else {
+      if (form.bulkCount && parseInt(form.bulkCount) > 1) {
+        const newCodes = Array.from({ length: parseInt(form.bulkCount) }, (_, i) => ({
+          id: Date.now() + i,
+          ...form,
+          code: form.code + "-" + String(i+1).padStart(3,"0"),
+          uses: 0, active: true, assigned: [],
+          maxUses: 1, singleUse: true,
+        }));
+        setCodes(p => [...p, ...newCodes]);
+      } else {
+        setCodes(p => [...p, { id: Date.now(), ...form, uses:0, active:true, assigned:[], maxUses: form.maxUses ? parseInt(form.maxUses) : null }]);
+      }
+    }
+    setShowModal(false);
+  }
+
+  function generateCode() {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    const code = Array.from({length:8}, () => chars[Math.floor(Math.random()*chars.length)]).join("");
+    setForm(f => ({ ...f, code }));
+  }
+
+  function toggleActive(id, e) {
+    e.stopPropagation();
+    setCodes(p => p.map(c => c.id === id ? { ...c, active: !c.active } : c));
+  }
+
+  function deleteCode(id, e) {
+    e.stopPropagation();
+    if (window.confirm("Delete this code?")) setCodes(p => p.filter(c => c.id !== id));
+  }
+
+  function updateCode(updated) {
+    setCodes(p => p.map(c => c.id === updated.id ? updated : c));
+    setSelectedCode(updated);
+  }
+
+  function exportCSV() {
+    const headers = ["Code","Type","Tier","Discount","Value","Uses","Max Uses","Active","Expires","Campaign","Notes"];
+    const rows = codes.map(c => [c.code, c.type, c.tier, c.discountType, c.value, c.uses, c.maxUses||"Unlimited", c.active?"Yes":"No", c.expires||"No expiry", c.campaign, c.notes]);
+    const csv = [headers, ...rows].map(r => r.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\n");
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download = "sidekix-promo-codes.csv"; a.click();
+  }
+
+  if (selectedCode) {
+    const fresh = codes.find(c => c.id === selectedCode.id) || selectedCode;
+    return <PromoCodeDetail code={fresh} onBack={() => setSelectedCode(null)} onUpdate={updateCode} />;
+  }
+
+  const totalUses     = codes.reduce((a,c) => a+c.uses, 0);
+  const activeCodes   = codes.filter(c => c.active).length;
+  const campaigns     = [...new Set(codes.map(c=>c.campaign).filter(Boolean))].length;
+  const presaleValue  = codes.filter(c=>c.type==="Presale").reduce((a,c)=>a+c.uses,0);
+
+  return (
+    <div style={{ padding:"28px 40px", maxWidth:1200, margin:"0 auto" }}>
+      <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:24 }}>
+        <div>
+          <div style={{ fontFamily:serif, fontSize:26, fontWeight:300, color:GOLD, letterSpacing:"0.02em" }}>Promo Codes</div>
+          <div style={{ fontSize:13, color:TEXT_MUTED, marginTop:4 }}>Manage discount, trial, referral, and presale codes</div>
+        </div>
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={exportCSV} style={{ padding:"8px 14px", background:"none", border:"1px solid "+BORDER, borderRadius:6, color:TEXT_SECONDARY, fontSize:12, cursor:"pointer" }}>Export CSV</button>
+          <button onClick={openNew} style={{ padding:"8px 18px", background:GOLD, border:"none", borderRadius:6, color:DARK_BG, fontSize:13, fontWeight:600, cursor:"pointer" }}>+ New Code</button>
+        </div>
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:14, marginBottom:24 }}>
+        {[
+          { label:"Total codes",   value:codes.length },
+          { label:"Active",        value:activeCodes },
+          { label:"Total uses",    value:totalUses },
+          { label:"Campaigns",     value:campaigns },
+          { label:"Presale uses",  value:presaleValue },
+        ].map(s => (
+          <div key={s.label} style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:8, padding:"14px 18px" }}>
+            <div style={{ fontSize:22, fontWeight:600, color:GOLD, fontFamily:mono }}>{s.value}</div>
+            <div style={{ fontSize:12, color:TEXT_MUTED, marginTop:4 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display:"flex", gap:10, marginBottom:16, alignItems:"center", flexWrap:"wrap" }}>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search codes, campaigns, notes…"
+          style={{ flex:1, minWidth:160, padding:"8px 14px", background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} />
+        {["All","Active","Inactive","Discount","Trial","Referral","Presale"].map(f => (
+          <button key={f} onClick={() => setFilter(f)} style={{ padding:"6px 14px", background: filter===f ? GOLD : "none", border:"1px solid "+(filter===f ? GOLD : BORDER), borderRadius:20, color: filter===f ? DARK_BG : TEXT_SECONDARY, fontSize:12, cursor:"pointer", fontWeight: filter===f ? 600 : 400 }}>{f}</button>
+        ))}
+      </div>
+
+      <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:8, overflow:"hidden" }}>
+        <table style={{ width:"100%", borderCollapse:"collapse", tableLayout:"fixed" }}>
+          <thead>
+            <tr style={{ borderBottom:"1px solid "+BORDER }}>
+              {[["Code","18%"],["Type","9%"],["Unlocks","8%"],["Value","8%"],["Uses","11%"],["Link","14%"],["Expires","9%"],["Campaign","8%"],["Status","8%"],["","7%"]].map(([h,w]) => (
+                <th key={h} style={{ padding:"10px 12px", textAlign:"left", fontSize:10, fontWeight:600, color:TEXT_MUTED, letterSpacing:"0.06em", textTransform:"uppercase", width:w, overflow:"hidden" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((c, i) => {
+              const tc = CODE_TYPE_COLORS[c.type] || CODE_TYPE_COLORS.Discount;
+              const progress = c.maxUses ? Math.round((c.uses/c.maxUses)*100) : null;
+              return (
+                <tr key={c.id} onClick={() => setSelectedCode(c)}
+                  style={{ borderBottom: i<filtered.length-1 ? "1px solid "+BORDER : "none", cursor:"pointer", background: i%2===0 ? "transparent" : "rgba(255,255,255,0.01)" }}
+                  onMouseEnter={e => e.currentTarget.style.background="rgba(201,169,110,0.04)"}
+                  onMouseLeave={e => e.currentTarget.style.background= i%2===0 ? "transparent" : "rgba(255,255,255,0.01)"}>
+                  <td style={{ padding:"11px 12px", overflow:"hidden" }}>
+                    <div style={{ fontFamily:mono, fontSize:13, fontWeight:600, color:GOLD, letterSpacing:"0.04em", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.code}</div>
+                    {c.notes && <div style={{ fontSize:10, color:TEXT_MUTED, marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.notes}</div>}
+                  </td>
+                  <td style={{ padding:"11px 12px" }}>
+                    <span style={{ background:tc.bg, color:tc.color, border:"1px solid "+tc.border, borderRadius:4, padding:"2px 8px", fontSize:10, fontWeight:600, whiteSpace:"nowrap" }}>{c.type}</span>
+                  </td>
+                  <td style={{ padding:"11px 12px", fontSize:11, color:TEXT_SECONDARY, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.tier}</td>
+                  <td style={{ padding:"11px 12px", fontFamily:mono, fontSize:11, color:TEXT_PRIMARY, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.discountType === "% off" ? c.value+"%" : c.discountType === "$ off" ? "$"+c.value : c.value}</td>
+                  <td style={{ padding:"11px 12px" }}>
+                    <div style={{ fontSize:11, color:TEXT_PRIMARY }}>{c.uses}{c.maxUses ? " / "+c.maxUses : ""}</div>
+                    {progress !== null && (
+                      <div style={{ marginTop:3, height:3, background:BORDER, borderRadius:2, width:60 }}>
+                        <div style={{ height:3, background:GOLD, borderRadius:2, width:progress+"%" }} />
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ padding:"11px 12px" }}>
+                    <span style={{ fontFamily:mono, fontSize:10, color:GOLD, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"block" }}>…/join?code={c.code}</span>
+                  </td>
+                  <td style={{ padding:"11px 12px", fontSize:11, color:TEXT_SECONDARY, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.expires || "No expiry"}</td>
+                  <td style={{ padding:"11px 12px", fontSize:11, color:TEXT_SECONDARY, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.campaign || "—"}</td>
+                  <td style={{ padding:"11px 12px" }}>
+                    <button onClick={e => toggleActive(c.id,e)} style={{ background: c.active ? "rgba(100,200,100,0.1)" : "rgba(100,100,100,0.1)", border:"1px solid "+(c.active ? "rgba(100,200,100,0.3)" : BORDER), borderRadius:4, padding:"2px 8px", fontSize:10, fontWeight:600, color: c.active ? "#7EC87E" : TEXT_MUTED, cursor:"pointer", whiteSpace:"nowrap" }}>
+                      {c.active ? "Active" : "Paused"}
+                    </button>
+                  </td>
+                  <td style={{ padding:"11px 12px" }}>
+                    <div style={{ display:"flex", gap:4 }}>
+                      <button onClick={e => openEdit(c,e)} style={{ background:"none", border:"1px solid "+BORDER, borderRadius:4, padding:"3px 8px", fontSize:10, color:TEXT_SECONDARY, cursor:"pointer" }}>Edit</button>
+                      <button onClick={e => deleteCode(c.id,e)} style={{ background:"none", border:"1px solid rgba(220,100,100,0.3)", borderRadius:4, padding:"3px 8px", fontSize:10, color:"#E07070", cursor:"pointer" }}>Del</button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+            {filtered.length === 0 && (
+              <tr><td colSpan={10} style={{ padding:"40px", textAlign:"center", color:TEXT_MUTED, fontSize:13 }}>No codes found</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {showModal && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center" }} onClick={() => setShowModal(false)}>
+          <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:12, padding:28, width:560, maxWidth:"90vw", maxHeight:"90vh", overflowY:"auto" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontFamily:serif, fontSize:20, fontWeight:300, color:GOLD, marginBottom:6 }}>{editing ? "Edit Code" : "New Promo Code"}</div>
+            <div style={{ fontSize:12, color:TEXT_MUTED, marginBottom:20 }}>Configure how this code behaves and what it unlocks</div>
+
+            {/* Basics */}
+            <div style={{ fontSize:10, fontWeight:600, color:TEXT_MUTED, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:10, paddingBottom:6, borderBottom:"1px solid "+BORDER }}>Code basics</div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:14 }}>
+              <div>
+                <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Code *</div>
+                <div style={{ display:"flex", gap:8 }}>
+                  <input value={form.code} onChange={e => setForm(f=>({...f,code:e.target.value.toUpperCase()}))}
+                    style={{ flex:1, padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, fontFamily:mono, outline:"none" }} placeholder="LAUNCH20" />
+                  <button onClick={generateCode} style={{ padding:"7px 12px", background:"none", border:"1px solid "+BORDER, borderRadius:6, color:TEXT_MUTED, fontSize:11, cursor:"pointer" }}>⚡ Gen</button>
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Type</div>
+                <select value={form.type} onChange={e => setForm(f=>({...f,type:e.target.value}))}
+                  style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }}>
+                  <option>Discount</option><option>Trial</option><option>Referral</option><option>Presale</option>
+                </select>
+              </div>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:20 }}>
+              <div>
+                <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Campaign</div>
+                <input value={form.campaign} onChange={e => setForm(f=>({...f,campaign:e.target.value}))}
+                  style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} placeholder="Launch, Waitlist…" />
+              </div>
+              <div>
+                <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Notes</div>
+                <input value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))}
+                  style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} placeholder="Internal note" />
+              </div>
+            </div>
+
+            {/* What it unlocks */}
+            <div style={{ fontSize:10, fontWeight:600, color:TEXT_MUTED, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:10, paddingBottom:6, borderBottom:"1px solid "+BORDER }}>What it unlocks</div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:14, marginBottom:14 }}>
+              <div>
+                <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Applies to</div>
+                <select value={form.tier} onChange={e => setForm(f=>({...f,tier:e.target.value}))}
+                  style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }}>
+                  <option>Any tier</option><option>Access</option><option>Core</option><option>Premium</option>
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Discount type</div>
+                <select value={form.discountType} onChange={e => setForm(f=>({...f,discountType:e.target.value}))}
+                  style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }}>
+                  <option>% off</option><option>$ off</option><option>Free trial</option><option>Free month</option>
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Value</div>
+                <input value={form.value} onChange={e => setForm(f=>({...f,value:e.target.value}))}
+                  style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} placeholder="20 or 30 days" />
+              </div>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:20 }}>
+              <div>
+                <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Duration</div>
+                <select value={form.duration} onChange={e => setForm(f=>({...f,duration:e.target.value}))}
+                  style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }}>
+                  <option>One-time</option><option>3 months</option><option>6 months</option><option>Forever</option>
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Promo message at redemption</div>
+                <input value={form.promoMsg} onChange={e => setForm(f=>({...f,promoMsg:e.target.value}))}
+                  style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} placeholder="You locked in founder pricing!" />
+              </div>
+            </div>
+
+            {/* Usage limits */}
+            <div style={{ fontSize:10, fontWeight:600, color:TEXT_MUTED, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:10, paddingBottom:6, borderBottom:"1px solid "+BORDER }}>Usage limits</div>
+            {[
+              { key:"singleUse",    label:"Single use",     desc:"Each code can only be redeemed once" },
+              { key:"onePerEmail",  label:"One per email",  desc:"Prevent same email redeeming multiple times" },
+            ].map(t => (
+              <div key={t.key} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 12px", background:DARK_BG, borderRadius:6, marginBottom:8 }}>
+                <div>
+                  <div style={{ fontSize:13, color:TEXT_PRIMARY }}>{t.label}</div>
+                  <div style={{ fontSize:11, color:TEXT_MUTED, marginTop:2 }}>{t.desc}</div>
+                </div>
+                <button onClick={() => setForm(f=>({...f,[t.key]:!f[t.key]}))}
+                  style={{ width:36, height:20, borderRadius:10, background: form[t.key] ? GOLD : BORDER, border:"none", cursor:"pointer", position:"relative", flexShrink:0 }}>
+                  <span style={{ position:"absolute", width:14, height:14, background:"white", borderRadius:"50%", top:3, left: form[t.key] ? 19 : 3, transition:"left 0.15s" }} />
+                </button>
+              </div>
+            ))}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:14, marginTop:10, marginBottom:20 }}>
+              <div>
+                <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Max total uses</div>
+                <input value={form.maxUses} onChange={e => setForm(f=>({...f,maxUses:e.target.value}))} type="number"
+                  style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} placeholder="Unlimited" />
+              </div>
+              <div>
+                <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Start date</div>
+                <input value={form.starts} onChange={e => setForm(f=>({...f,starts:e.target.value}))} type="date"
+                  style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} />
+              </div>
+              <div>
+                <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>End date</div>
+                <input value={form.expires} onChange={e => setForm(f=>({...f,expires:e.target.value}))} type="date"
+                  style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} />
+              </div>
+            </div>
+
+            {/* Bulk generate */}
+            {!editing && (
+              <>
+                <div style={{ fontSize:10, fontWeight:600, color:TEXT_MUTED, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:10, paddingBottom:6, borderBottom:"1px solid "+BORDER }}>Bulk generate</div>
+                <div style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 12px", background:DARK_BG, borderRadius:6, marginBottom:20 }}>
+                  <div style={{ flex:1, fontSize:13, color:TEXT_SECONDARY }}>Generate unique single-use codes for this campaign</div>
+                  <input value={form.bulkCount} onChange={e => setForm(f=>({...f,bulkCount:e.target.value}))} type="number" min="1" max="500"
+                    style={{ width:60, padding:"6px 8px", background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none", textAlign:"center" }} placeholder="1" />
+                </div>
+              </>
+            )}
+
+            <div style={{ display:"flex", gap:10, justifyContent:"flex-end", paddingTop:16, borderTop:"1px solid "+BORDER }}>
+              <button onClick={() => setShowModal(false)} style={{ padding:"8px 20px", background:"none", border:"1px solid "+BORDER, borderRadius:6, color:TEXT_SECONDARY, fontSize:13, cursor:"pointer" }}>Cancel</button>
+              <button onClick={saveCode} style={{ padding:"8px 20px", background:GOLD, border:"none", borderRadius:6, color:DARK_BG, fontSize:13, fontWeight:600, cursor:"pointer" }}>{editing ? "Save Changes" : form.bulkCount > 1 ? "Generate "+form.bulkCount+" Codes" : "Create Code"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 // ─── App root — hooks before conditional return ───────────────────────────────
 function App() {
