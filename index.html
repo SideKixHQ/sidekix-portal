@@ -11,7 +11,7 @@
     #root { min-height: 100vh; }
     select option { background: #242017; color: #F0EAD6; }
     ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #1C1A14; }
+    ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #3A3528; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #6B6454; }
   </style>
@@ -24,19 +24,49 @@
   <script type="text/babel">
 const { useState, useMemo, useRef, useEffect } = React;
 
-// ─── Brand tokens ─────────────────────────────────────────────────────────────
-const GOLD       = "#C9A96E";
-const GOLD_LIGHT = "#E2C99A";
-const DARK_BG    = "#1C1A14";
-const DARK_CARD  = "#242017";
-const DARK_CARD2 = "#2C2820";
-const BORDER     = "#3A3528";
-const TEXT_PRIMARY   = "#F0EAD6";
-const TEXT_SECONDARY = "#9A9078";
-const TEXT_MUTED     = "#6B6454";
+// ─── Theme system ──────────────────────────────────────────────────────────────
+const THEMES = {
+  dark: {
+    GOLD:           "#C9A96E",
+    GOLD_LIGHT:     "#E2C99A",
+    DARK_BG:        "#1C1A14",
+    DARK_CARD:      "#242017",
+    DARK_CARD2:     "#2C2820",
+    BORDER:         "#3A3528",
+    TEXT_PRIMARY:   "#F0EAD6",
+    TEXT_SECONDARY: "#9A9078",
+    TEXT_MUTED:     "#6B6454",
+  },
+  light: {
+    GOLD:           "#8B6914",
+    GOLD_LIGHT:     "#A07820",
+    DARK_BG:        "#F5F0E8",
+    DARK_CARD:      "#FFFFFF",
+    DARK_CARD2:     "#F0EBE0",
+    BORDER:         "#DDD5C4",
+    TEXT_PRIMARY:   "#1C1A14",
+    TEXT_SECONDARY: "#6B5E47",
+    TEXT_MUTED:     "#9A8E7A",
+  },
+};
+
+// These get overridden per render via ThemeContext
+let GOLD       = THEMES.dark.GOLD;
+let GOLD_LIGHT = THEMES.dark.GOLD_LIGHT;
+let DARK_BG    = THEMES.dark.DARK_BG;
+let DARK_CARD  = THEMES.dark.DARK_CARD;
+let DARK_CARD2 = THEMES.dark.DARK_CARD2;
+let BORDER     = THEMES.dark.BORDER;
+let TEXT_PRIMARY   = THEMES.dark.TEXT_PRIMARY;
+let TEXT_SECONDARY = THEMES.dark.TEXT_SECONDARY;
+let TEXT_MUTED     = THEMES.dark.TEXT_MUTED;
+
 const font  = "'DM Sans', system-ui, sans-serif";
 const serif = "'Cormorant Garamond', serif";
 const mono  = "'DM Mono', monospace";
+
+const ThemeContext = React.createContext("dark");
+function useTheme() { return React.useContext(ThemeContext); }
 
 const ACCESS_PASSWORD = "sidekix2026";
 const ALLOWED_DOMAIN  = "sidekixhq.com";
@@ -612,16 +642,21 @@ function ApplicationModal({ person, onClose, onUpdate }) {
     if (s === "Interview") setShowInv(true);
     if (s === "Rejected")  setShowRej(true);
     if (s === "Offer") {
-      const tpl = INITIAL_TEMPLATES.offer;
       const email = person.email;
       const firstName = person.firstName || "";
+      const confirmed = window.confirm(
+        "Send onboarding documents to " + firstName + " (" + email + ")?" +
+        "\n\nThis will send them a link to sign the Mutual NDA, Advisor Agreement, and review all 3 platform policies."
+      );
+      if (!confirmed) { setReview(review); return; }
+      const tpl = INITIAL_TEMPLATES.offer;
       const subject = tpl.subject.replace(/\{\{first_name\}\}/g, firstName).replace(/\{\{email\}\}/g, email);
       const body    = tpl.body.replace(/\{\{first_name\}\}/g, firstName).replace(/\{\{email\}\}/g, email);
       fetch(SERVER_URL + "/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-SideKix-Secret": SERVER_SECRET },
         body: JSON.stringify({ to: email, from: tpl.routedTo, fromName: "SideKix Advisors", subject, body }),
-      }).then(() => alert("Offer email sent to " + email))
+      }).then(() => alert("✓ Onboarding documents sent to " + email))
         .catch(() => alert("Failed to send offer email"));
     }
   }
@@ -920,6 +955,7 @@ function RowMenu({ archived, onArchive, onRestore, onDelete, onUnsubscribe, isUn
 function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
   const [subs,         setSubs]         = useState(MOCK_SUBSCRIBERS);
   const [search,       setSearch]       = useState("");
+  const [subsView,     setSubsView]     = useState("list");
   const [showPromoModal,  setShowPromoModal]  = useState(false);
   const [promoPickCode,   setPromoPickCode]   = useState("");
   const [promoSending,    setPromoSending]    = useState(false);
@@ -1068,6 +1104,78 @@ function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
   return (
     <>
     <div>
+      {/* View toggle */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"1rem" }}>
+        <div style={{ display:"flex", background:DARK_CARD, borderRadius:6, border:"1px solid "+BORDER, overflow:"hidden" }}>
+          {[{id:"list",label:"List view"},{id:"pipeline",label:"Pipeline view"}].map(v => (
+            <button key={v.id} onClick={() => setSubsView(v.id)}
+              style={{ padding:"7px 18px", background: subsView===v.id ? GOLD : "none", border:"none", color: subsView===v.id ? DARK_BG : TEXT_MUTED, fontSize:12, fontWeight: subsView===v.id ? 600 : 400, cursor:"pointer" }}>
+              {v.label}
+            </button>
+          ))}
+        </div>
+        {subsView === "pipeline" && (
+          <div style={{ fontSize:12, color:TEXT_MUTED }}>Click any applicant to review their application</div>
+        )}
+      </div>
+
+      {/* Pipeline view */}
+      {subsView === "pipeline" && (() => {
+        const pipeApps = subs.filter(s => s.source === "Application");
+        const stages = ["Pending","Under Review","Interview","Approved","Offer","Rejected","On Hold"];
+        return (
+          <div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:10, marginBottom:20 }}>
+              {stages.map(stage => {
+                const count = pipeApps.filter(a => (a.reviewStatus||"Pending") === stage).length;
+                const colors = { Pending:"#888", "Under Review":"#B89AE8", Interview:"#6AB4E8", Approved:"#7EC87E", Offer:"#C9A96E", Rejected:"#E07070", "On Hold":"#C8986E" };
+                return (
+                  <div key={stage} style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:8, padding:"12px 14px" }}>
+                    <div style={{ fontSize:18, fontWeight:600, color:colors[stage]||GOLD, fontFamily:mono }}>{count}</div>
+                    <div style={{ fontSize:11, color:TEXT_MUTED, marginTop:3 }}>{stage}</div>
+                  </div>
+                );
+              })}
+            </div>
+            {stages.map(stage => {
+              const applicants = pipeApps.filter(a => (a.reviewStatus||"Pending") === stage);
+              if (!applicants.length) return null;
+              const colors = { Pending:"#888", "Under Review":"#B89AE8", Interview:"#6AB4E8", Approved:"#7EC87E", Offer:"#C9A96E", Rejected:"#E07070", "On Hold":"#C8986E" };
+              return (
+                <div key={stage} style={{ marginBottom:20 }}>
+                  <div style={{ fontSize:11, fontWeight:600, color:colors[stage], textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:8 }}>{stage} · {applicants.length}</div>
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap:10 }}>
+                    {applicants.map(a => (
+                      <div key={a.id} onClick={() => setActivePerson(a)}
+                        style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:8, padding:"14px 16px", cursor:"pointer" }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor=GOLD}
+                        onMouseLeave={e => e.currentTarget.style.borderColor=BORDER}>
+                        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+                          <Avatar first={a.firstName} last={a.lastName} />
+                          <div>
+                            <div style={{ fontSize:13, fontWeight:500, color:TEXT_PRIMARY }}>{a.firstName} {a.lastName}</div>
+                            <div style={{ fontSize:11, color:TEXT_MUTED }}>{a.email}</div>
+                          </div>
+                        </div>
+                        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                          {(a.tags||[]).map((t,i) => <Tag key={i} label={t} />)}
+                        </div>
+                        <div style={{ fontSize:11, color:TEXT_MUTED, marginTop:8 }}>Applied {a.joined}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            {activePerson && activePerson.source === "Application" && (
+              <ApplicationModal person={activePerson} onClose={() => setActivePerson(null)} onUpdate={updatePerson} />
+            )}
+          </div>
+        );
+      })()}
+
+      {/* List view */}
+      <div style={{ display: subsView === "list" ? "block" : "none" }}>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(6,1fr)", gap:10, marginBottom:"1.5rem" }}>
         {stats.map(({ label, value, onClick }) => (
           <div key={label} onClick={onClick} style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:4, padding:"12px 16px", cursor:"pointer" }}>
@@ -1114,7 +1222,7 @@ function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
               </thead>
               <tbody>
                 {filtered.length === 0
-                  ? <tr><td colSpan={9} style={{ padding:"2.5rem", textAlign:"center", color:TEXT_MUTED, fontFamily:font }}>No subscribers found</td></tr>
+                  ? <tr><td colSpan={9} style={{ padding:"2.5rem", textAlign:"center", color:TEXT_MUTED, fontFamily:font }}><span>No subscribers match your filters. </span><button onClick={() => { setSearch(""); setSourceFilter("All sources"); setStatusFilter("All statuses"); setReviewFilter("All reviews"); }} style={{ background:"none", border:"none", color:GOLD, cursor:"pointer", fontSize:12, textDecoration:"underline", fontFamily:font }}>Clear filters</button></td></tr>
                   : filtered.map((s, i) => {
                     const isSel = selectedIds.has(s.id);
                     const isAct = activePerson && activePerson.id === s.id;
@@ -1124,7 +1232,10 @@ function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
                         <td style={{ padding:"10px 14px" }}>
                           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                             <Avatar first={s.firstName} last={s.lastName} />
-                            <span style={{ fontSize:13, fontFamily:serif, color:TEXT_PRIMARY, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.firstName} {s.lastName}</span>
+                            <div>
+                              <div style={{ fontSize:13, fontFamily:serif, color:TEXT_PRIMARY, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.firstName} {s.lastName}</div>
+                              <div style={{ fontSize:10, color:TEXT_MUTED, marginTop:1 }}>Click to view →</div>
+                            </div>
                           </div>
                         </td>
                         <td style={{ padding:"10px 14px", color:TEXT_SECONDARY, fontFamily:mono, fontSize:11, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.email}</td>
@@ -1171,6 +1282,7 @@ function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
         {activePerson && activePerson.source !== "Application" && <SidePanel person={activePerson} onClose={() => setActivePerson(null)} onUpdate={updatePerson} />}
       </div>
     </div>
+      </div>{/* end list view */}
     {/* Promo Code Send Modal */}
     {showPromoModal && (
       <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center" }} onClick={() => !promoSending && setShowPromoModal(false)}>
@@ -1441,6 +1553,10 @@ function SendLogTab() {
       {selectedIds.size > 0 && (
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:"0.75rem", padding:"8px 12px", background:"rgba(201,169,110,0.08)", border:"1px solid rgba(201,169,110,0.2)", borderRadius:4, fontSize:12, color:GOLD_LIGHT, fontFamily:font }}>
           <span style={{ fontWeight:600 }}>{selectedIds.size} selected</span>
+          <span style={{ color:TEXT_MUTED, fontSize:11 }}>
+            {subs.filter(s => selectedIds.has(s.id)).slice(0,3).map(s => s.firstName).join(", ")}
+            {selectedIds.size > 3 ? " +" + (selectedIds.size - 3) + " more" : ""}
+          </span>
           <button onClick={() => archiveSelected()} style={{ padding:"4px 12px", background:"none", border:"1px solid "+BORDER, borderRadius:4, color:TEXT_SECONDARY, fontSize:11, cursor:"pointer", fontFamily:font }}>Archive</button>
           <button onClick={() => deleteSelected()} style={{ padding:"4px 12px", background:"none", border:"1px solid rgba(220,100,100,0.3)", borderRadius:4, color:"#E07070", fontSize:11, cursor:"pointer", fontFamily:font }}>Delete</button>
           <button onClick={() => setShowPromoModal(true)} style={{ padding:"4px 12px", background:GOLD, border:"none", borderRadius:4, color:DARK_BG, fontSize:11, cursor:"pointer", fontFamily:font, fontWeight:600 }}>⚡ Send Promo Code</button>
@@ -1469,7 +1585,7 @@ function SendLogTab() {
                   <tr key={r.id} onClick={() => toggleRow(r.id)} style={{ borderBottom: i < filtered.length - 1 ? "1px solid "+BORDER : "none", background: r.unsubscribed ? "rgba(220,100,100,0.04)" : isSel ? "rgba(201,169,110,0.05)" : "transparent", cursor:"pointer", opacity: r.unsubscribed ? 0.75 : 1 }}>
                     <td style={{ padding:"10px 12px" }}><input type="checkbox" checked={isSel} onChange={() => toggleRow(r.id)} onClick={e => e.stopPropagation()} style={{ width:14, height:14, accentColor:GOLD, cursor:"pointer" }} /></td>
                     <td style={{ padding:"10px 12px", color:TEXT_PRIMARY, fontFamily:font, fontSize:12, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.firstName} {r.lastName}</td>
-                    <td style={{ padding:"10px 12px", color:TEXT_SECONDARY, fontFamily:mono, fontSize:11, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.to}</td>
+                    <td style={{ padding:"10px 12px", color:TEXT_SECONDARY, fontFamily:mono, fontSize:11, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.firstName ? r.firstName + " " + r.lastName + " " : ""}{r.to}</td>
                     <td style={{ padding:"10px 12px", color:TEXT_SECONDARY, fontFamily:font, fontSize:11, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.template}</td>
                     <td style={{ padding:"10px 12px", color:TEXT_MUTED, fontFamily:mono, fontSize:10, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.routedTo}</td>
                     <td style={{ padding:"10px 12px" }}>
@@ -1532,87 +1648,21 @@ function SettingsBlock({ title, from, state, setState, saved, setSaved }) {
   );
 }
 
-function SettingsTab() {
-  const [sub, setSub] = useState({ apiKey:"", fromEmail:"joinus@sidekixhq.com",   fromName:"SideKix",          replyTo:"joinus@sidekixhq.com",   logoUrl:"" });
-  const [adv, setAdv] = useState({ apiKey:"", fromEmail:"Advisors@sidekixhq.com", fromName:"SideKix Advisors", replyTo:"Advisors@sidekixhq.com", logoUrl:"" });
-  const [savedSub, setSavedSub] = useState(false);
-  const [savedAdv, setSavedAdv] = useState(false);
-  return (
-    <div style={{ maxWidth:520 }}>
-      <SettingsBlock title="Subscriber Emails" from="joinus@sidekixhq.com"   state={sub} setState={setSub} saved={savedSub} setSaved={setSavedSub} />
-      <SettingsBlock title="Advisor Emails"    from="Advisors@sidekixhq.com" state={adv} setState={setAdv} saved={savedAdv} setSaved={setSavedAdv} />
-      <div style={{ padding:"1rem 1.25rem", border:"1px solid "+BORDER, borderRadius:4 }}>
-        <div style={{ fontSize:11, fontFamily:font, fontWeight:500, letterSpacing:"0.1em", textTransform:"uppercase", color:TEXT_MUTED, marginBottom:10 }}>How to get your SendGrid API key</div>
-        <ol style={{ margin:0, paddingLeft:"1.1rem", fontSize:12, color:TEXT_SECONDARY, lineHeight:2.2, fontFamily:font }}>
-          <li>Log in at <a href="https://sendgrid.com" target="_blank" rel="noopener noreferrer" style={{ color:GOLD_LIGHT }}>sendgrid.com</a></li>
-          <li>Settings → API Keys → Create API Key</li>
-          <li>Choose "Full Access" or "Restricted" with Mail Send enabled</li>
-          <li>Copy and paste it above</li>
-          <li>Verify both sender addresses under Settings → Sender Authentication</li>
-        </ol>
-      </div>
-    </div>
-  );
-}
-
-// ─── Dashboard ────────────────────────────────────────────────────────────────
-function Dashboard({ currentUser, onSignOut }) {
-  const [tab,     setTab]    = useState("templates");
-  const [logoUrl] = useState("");
-  const [promoCodes, setPromoCodes] = useState(INITIAL_CODES);
-  const TABS = [
-    { id:"templates",   label:"Templates"   },
-    { id:"subscribers", label:"Subscribers" },
-    { id:"pipeline",    label:"Pipeline"    },
-    { id:"promocodes",  label:"Promo Codes" },
-    { id:"sendlog",     label:"Send Log"    },
-    { id:"settings",    label:"Settings"    },
-  ];
-  return (
-    <div style={{ fontFamily:serif, background:DARK_BG, minHeight:"100vh", padding:"2rem 1.75rem", color:TEXT_PRIMARY }}>
-      <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"2rem" }}>
-        <div>
-          <div style={{ fontFamily:serif, fontSize:20, letterSpacing:"0.12em", color:TEXT_PRIMARY, marginBottom:"0.2rem" }}>SideKix<span style={{ color:GOLD }}>·</span></div>
-          <div style={{ fontFamily:font, fontSize:11, color:TEXT_MUTED, letterSpacing:"0.08em", textTransform:"uppercase" }}>Team Portal</div>
-        </div>
-        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-          <span style={{ fontSize:11, fontFamily:mono, color:TEXT_MUTED }}>{currentUser}</span>
-          <button onClick={onSignOut} style={{ fontSize:10, padding:"5px 12px", borderRadius:3, border:"1px solid "+BORDER, background:"transparent", color:TEXT_MUTED, cursor:"pointer", fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em" }}>Sign out</button>
-        </div>
-      </div>
-      <div style={{ display:"flex", borderBottom:"1px solid "+BORDER, marginBottom:"1.75rem" }}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{ background:"none", border:"none", borderBottom: tab === t.id ? "1px solid "+GOLD : "1px solid transparent", padding:"8px 22px", fontSize:11, fontWeight:500, letterSpacing:"0.1em", textTransform:"uppercase", color: tab === t.id ? GOLD : TEXT_MUTED, cursor:"pointer", marginBottom:-1, fontFamily:font }}>
-            {t.label}
-          </button>
-        ))}
-      </div>
-      {tab === "templates"   && <TemplatesTab logoUrl={logoUrl} />}
-      {tab === "subscribers" && <SubscribersTab currentUser={currentUser} promoCodes={promoCodes} setPromoCodes={setPromoCodes} />}
-      {tab === "pipeline"    && <PipelineTab />}
-      {tab === "sendlog"     && <SendLogTab />}
-      {tab === "promocodes"  && <PromoCodesTab codes={promoCodes} setCodes={setPromoCodes} />}
-    {tab === "settings"    && <SettingsTab />}
-    </div>
-  );
-}
-
 // ─── Promo Codes Tab ──────────────────────────────────────────────────────────
 const INITIAL_CODES = [
-  { id:1, code:"FOUNDER20",  type:"Presale",  tier:"Core",    discountType:"% off",    value:"20", duration:"One-time", singleUse:true,  onePerEmail:true,  uses:8,  maxUses:50,  active:true,  starts:"",           expires:"2026-12-31", campaign:"Founder",  notes:"Founder pricing",           promoMsg:"You locked in founder pricing!",
+  { id:1, code:"FOUNDER20",  type:"Presale",  tier:"Core",    discountType:"% off",    value:"20", duration:"One-time", singleUse:true,  onePerEmail:true,  uses:8,  maxUses:50,  active:true,  starts:"", expires:"2026-12-31", campaign:"Founder",  notes:"Founder pricing", promoMsg:"You locked in founder pricing!",
     assigned:[
-      { email:"jane@example.com",    name:"Jane Doe",     status:"redeemed", redeemedTier:"Core",    date:"May 14" },
-      { email:"marcus@fundco.io",    name:"Marcus Rivera", status:"redeemed", redeemedTier:"Core",    date:"May 15" },
-      { email:"sarah@startup.co",    name:"Sarah Lee",    status:"opened",   redeemedTier:"",        date:"" },
-      { email:"tom@biz.com",         name:"Tom Wilson",   status:"opened",   redeemedTier:"",        date:"" },
-      { email:"amy@ventures.io",     name:"Amy Chen",     status:"sent",     redeemedTier:"",        date:"" },
+      { email:"jane@example.com",   name:"Jane Doe",      status:"redeemed", redeemedTier:"Core", date:"May 14" },
+      { email:"marcus@fundco.io",   name:"Marcus Rivera", status:"redeemed", redeemedTier:"Core", date:"May 15" },
+      { email:"sarah@startup.co",   name:"Sarah Lee",     status:"opened",   redeemedTier:"",     date:"" },
+      { email:"tom@biz.com",        name:"Tom Wilson",    status:"opened",   redeemedTier:"",     date:"" },
+      { email:"amy@ventures.io",    name:"Amy Chen",      status:"sent",     redeemedTier:"",     date:"" },
     ]
   },
-  { id:2, code:"WAITLIST10", type:"Discount", tier:"Any",     discountType:"% off",    value:"10", duration:"One-time", singleUse:false, onePerEmail:true,  uses:24, maxUses:200, active:true,  starts:"",           expires:"2026-12-31", campaign:"Waitlist", notes:"Waitlist discount",         promoMsg:"", assigned:[] },
-  { id:3, code:"TRIAL30",    type:"Trial",    tier:"Premium", discountType:"Free trial",value:"30 days", duration:"",  singleUse:false, onePerEmail:true,  uses:12, maxUses:50,  active:true,  starts:"",           expires:"2026-09-01", campaign:"",         notes:"30 day free trial",         promoMsg:"", assigned:[] },
-  { id:4, code:"ADVISOR25",  type:"Referral", tier:"Any",     discountType:"$ off",    value:"25", duration:"One-time", singleUse:false, onePerEmail:false, uses:3,  maxUses:null,active:true,  starts:"",           expires:"",           campaign:"Referral", notes:"Advisor referral reward",   promoMsg:"", assigned:[] },
-  { id:5, code:"CHAMBER50",  type:"Discount", tier:"Core",    discountType:"% off",    value:"50", duration:"One-time", singleUse:false, onePerEmail:true,  uses:0,  maxUses:30,  active:false, starts:"",           expires:"2026-08-01", campaign:"Founder",  notes:"Chamber of commerce promo", promoMsg:"", assigned:[] },
+  { id:2, code:"WAITLIST10", type:"Discount", tier:"Any",     discountType:"% off",    value:"10", duration:"One-time", singleUse:false, onePerEmail:true,  uses:24, maxUses:200, active:true,  starts:"", expires:"2026-12-31", campaign:"Waitlist", notes:"Waitlist discount",         promoMsg:"", assigned:[] },
+  { id:3, code:"TRIAL30",    type:"Trial",    tier:"Premium", discountType:"Free trial",value:"30 days", duration:"", singleUse:false, onePerEmail:true,  uses:12, maxUses:50,  active:true,  starts:"", expires:"2026-09-01", campaign:"",         notes:"30 day free trial",         promoMsg:"", assigned:[] },
+  { id:4, code:"ADVISOR25",  type:"Referral", tier:"Any",     discountType:"$ off",    value:"25", duration:"One-time", singleUse:false, onePerEmail:false, uses:3,  maxUses:null,active:true,  starts:"", expires:"",           campaign:"Referral", notes:"Advisor referral reward",   promoMsg:"", assigned:[] },
+  { id:5, code:"CHAMBER50",  type:"Discount", tier:"Core",    discountType:"% off",    value:"50", duration:"One-time", singleUse:false, onePerEmail:true,  uses:0,  maxUses:30,  active:false, starts:"", expires:"2026-08-01", campaign:"Founder",  notes:"Chamber of commerce promo", promoMsg:"", assigned:[] },
 ];
 
 const CODE_TYPE_COLORS = {
@@ -1633,9 +1683,9 @@ function PromoCodeDetail({ code, onBack, onUpdate }) {
   const [assignEmail, setAssignEmail] = useState("");
   const [showAssignDone, setShowAssignDone] = useState(false);
 
-  const redeemed = code.assigned.filter(a => a.status === "redeemed");
-  const opened   = code.assigned.filter(a => a.status === "opened");
-  const sent     = code.assigned.filter(a => a.status === "sent");
+  const redeemed    = code.assigned.filter(a => a.status === "redeemed");
+  const opened      = code.assigned.filter(a => a.status === "opened");
+  const sent        = code.assigned.filter(a => a.status === "sent");
   const notRedeemed = [...opened, ...sent];
 
   const filteredAssigned = activeTab === "all" ? code.assigned
@@ -1654,26 +1704,20 @@ function PromoCodeDetail({ code, onBack, onUpdate }) {
     setTimeout(() => setShowAssignDone(false), 2000);
   }
 
-  function handleRemind(email) {
-    alert("Reminder sent to " + email);
-  }
-
-  function handleRemindAll() {
-    alert("Reminder sent to " + notRedeemed.length + " people who haven't redeemed yet.");
-  }
+  function handleRemind(email) { alert("Reminder sent to " + email); }
+  function handleRemindAll() { alert("Reminder sent to " + notRedeemed.length + " people who haven't redeemed yet."); }
 
   const tc = CODE_TYPE_COLORS[code.type] || CODE_TYPE_COLORS.Discount;
 
   return (
     <div style={{ padding:"28px 40px" }}>
-      <button onClick={onBack} style={{ background:"none", border:"none", color:TEXT_MUTED, fontSize:13, cursor:"pointer", padding:"0 0 20px", display:"flex", alignItems:"center", gap:6 }}>
-        ← Promo codes / <span style={{ color:GOLD, fontFamily:mono }}>{code.code}</span>
+      <button onClick={onBack} style={{ display:"flex", alignItems:"center", gap:8, background:"none", border:"1px solid "+BORDER, borderRadius:6, color:TEXT_SECONDARY, fontSize:12, cursor:"pointer", padding:"7px 14px", marginBottom:20 }}>
+        ← Back to Promo Codes
       </button>
+      <div style={{ fontFamily:serif, fontSize:22, fontWeight:300, color:GOLD, letterSpacing:"0.02em", marginBottom:20 }}>{code.code}</div>
 
       <div style={{ display:"grid", gridTemplateColumns:"1fr 300px", gap:20 }}>
-        {/* Main panel */}
         <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:8, overflow:"hidden" }}>
-          {/* Header */}
           <div style={{ padding:"16px 20px", borderBottom:"1px solid "+BORDER, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
               <span style={{ fontFamily:mono, fontSize:20, fontWeight:600, color:GOLD, letterSpacing:"0.05em" }}>{code.code}</span>
@@ -1686,14 +1730,8 @@ function PromoCodeDetail({ code, onBack, onUpdate }) {
             </div>
           </div>
 
-          {/* Stats */}
           <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", borderBottom:"1px solid "+BORDER }}>
-            {[
-              { val:code.assigned.length, lbl:"Assigned" },
-              { val:redeemed.length,      lbl:"Redeemed" },
-              { val:opened.length,        lbl:"Opened" },
-              { val:convRate+"%",         lbl:"Conversion" },
-            ].map((s,i) => (
+            {[{val:code.assigned.length,lbl:"Assigned"},{val:redeemed.length,lbl:"Redeemed"},{val:opened.length,lbl:"Opened"},{val:convRate+"%",lbl:"Conversion"}].map((s,i) => (
               <div key={i} style={{ padding:"12px 16px", borderRight: i<3 ? "1px solid "+BORDER : "none" }}>
                 <div style={{ fontSize:20, fontWeight:600, color:GOLD, fontFamily:mono }}>{s.val}</div>
                 <div style={{ fontSize:11, color:TEXT_MUTED, marginTop:2 }}>{s.lbl}</div>
@@ -1701,14 +1739,8 @@ function PromoCodeDetail({ code, onBack, onUpdate }) {
             ))}
           </div>
 
-          {/* Tabs */}
           <div style={{ display:"flex", borderBottom:"1px solid "+BORDER, paddingLeft:8 }}>
-            {[
-              { id:"all",      label:"All ("+code.assigned.length+")" },
-              { id:"redeemed", label:"Redeemed ("+redeemed.length+")" },
-              { id:"opened",   label:"Opened, not redeemed ("+opened.length+")" },
-              { id:"sent",     label:"Not opened ("+sent.length+")" },
-            ].map(t => (
+            {[{id:"all",label:"All ("+code.assigned.length+")"},{id:"redeemed",label:"Redeemed ("+redeemed.length+")"},{id:"opened",label:"Opened, not redeemed ("+opened.length+")"},{id:"sent",label:"Not opened ("+sent.length+")"}].map(t => (
               <button key={t.id} onClick={() => setActiveTab(t.id)}
                 style={{ padding:"10px 14px", background:"none", border:"none", borderBottom: activeTab===t.id ? "2px solid "+GOLD : "2px solid transparent", color: activeTab===t.id ? GOLD : TEXT_MUTED, fontSize:12, cursor:"pointer", fontWeight: activeTab===t.id ? 600 : 400, whiteSpace:"nowrap" }}>
                 {t.label}
@@ -1716,10 +1748,9 @@ function PromoCodeDetail({ code, onBack, onUpdate }) {
             ))}
           </div>
 
-          {/* Person list */}
           {filteredAssigned.length === 0 ? (
             <div style={{ padding:"32px", textAlign:"center", color:TEXT_MUTED, fontSize:13 }}>No contacts in this category</div>
-          ) : filteredAssigned.map((p, i) => {
+          ) : filteredAssigned.map((p,i) => {
             const sc = REDEMPTION_COLORS[p.status];
             return (
               <div key={i} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 20px", borderBottom: i<filteredAssigned.length-1 ? "1px solid "+BORDER : "none" }}>
@@ -1744,29 +1775,16 @@ function PromoCodeDetail({ code, onBack, onUpdate }) {
           })}
         </div>
 
-        {/* Side panel */}
         <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-          {/* Code details */}
           <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:8, padding:16 }}>
             <div style={{ fontSize:11, fontWeight:600, color:TEXT_MUTED, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:12 }}>Code details</div>
-            {[
-              ["Applies to", code.tier],
-              ["Discount", code.discountType + (code.value ? " · " + code.value : "")],
-              ["Duration", code.duration || "—"],
-              ["Single use", code.singleUse ? "Yes" : "No"],
-              ["One per email", code.onePerEmail ? "Yes" : "No"],
-              ["Max uses", code.maxUses ? code.maxUses : "Unlimited"],
-              ["Expires", code.expires || "No expiry"],
-              ["Campaign", code.campaign || "—"],
-            ].map(([l,v]) => (
+            {[["Applies to",code.tier],["Discount",code.discountType+(code.value?" · "+code.value:"")],["Duration",code.duration||"—"],["Single use",code.singleUse?"Yes":"No"],["One per email",code.onePerEmail?"Yes":"No"],["Max uses",code.maxUses?code.maxUses:"Unlimited"],["Expires",code.expires||"No expiry"],["Campaign",code.campaign||"—"]].map(([l,v]) => (
               <div key={l} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:7 }}>
                 <span style={{ fontSize:12, color:TEXT_MUTED }}>{l}</span>
                 <span style={{ fontSize:12, color:TEXT_PRIMARY, fontWeight:500 }}>{v}</span>
               </div>
             ))}
-            {code.promoMsg && (
-              <div style={{ marginTop:8, padding:"8px 10px", background:"rgba(201,169,110,0.08)", borderRadius:6, fontSize:11, color:GOLD, fontStyle:"italic" }}>"{code.promoMsg}"</div>
-            )}
+            {code.promoMsg && <div style={{ marginTop:8, padding:"8px 10px", background:"rgba(201,169,110,0.08)", borderRadius:6, fontSize:11, color:GOLD, fontStyle:"italic" }}>"{code.promoMsg}"</div>}
             {code.maxUses && (
               <div style={{ marginTop:10 }}>
                 <div style={{ height:4, background:BORDER, borderRadius:2 }}>
@@ -1777,7 +1795,6 @@ function PromoCodeDetail({ code, onBack, onUpdate }) {
             )}
           </div>
 
-          {/* Shareable link */}
           <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:8, padding:16 }}>
             <div style={{ fontSize:11, fontWeight:600, color:TEXT_MUTED, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:10 }}>Shareable link</div>
             <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 10px", background:DARK_BG, borderRadius:6, border:"1px solid "+BORDER }}>
@@ -1786,7 +1803,6 @@ function PromoCodeDetail({ code, onBack, onUpdate }) {
             </div>
           </div>
 
-          {/* Assign */}
           <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:8, padding:16 }}>
             <div style={{ fontSize:11, fontWeight:600, color:TEXT_MUTED, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:8 }}>Assign to someone</div>
             <div style={{ fontSize:12, color:TEXT_MUTED, marginBottom:10 }}>Send this code to a specific person and track their redemption</div>
@@ -1809,12 +1825,12 @@ function PromoCodeDetail({ code, onBack, onUpdate }) {
 }
 
 function PromoCodesTab({ codes, setCodes }) {
-  const [search, setSearch]       = useState("");
-  const [filter, setFilter]       = useState("All");
+  const [search, setSearch]         = useState("");
+  const [filter, setFilter]         = useState("All");
   const [selectedCode, setSelectedCode] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [editing, setEditing]     = useState(null);
-  const [form, setForm]           = useState({ code:"", type:"Discount", tier:"Any", discountType:"% off", value:"", duration:"One-time", singleUse:false, onePerEmail:true, maxUses:"", starts:"", expires:"", campaign:"", notes:"", promoMsg:"", bulkCount:"" });
+  const [showModal, setShowModal]   = useState(false);
+  const [editing, setEditing]       = useState(null);
+  const [form, setForm]             = useState({ code:"", type:"Discount", tier:"Any", discountType:"% off", value:"", duration:"One-time", singleUse:false, onePerEmail:true, maxUses:"", starts:"", expires:"", campaign:"", notes:"", promoMsg:"", bulkCount:"" });
 
   const filtered = codes.filter(c => {
     const q = search.toLowerCase();
@@ -1823,66 +1839,31 @@ function PromoCodesTab({ codes, setCodes }) {
     return matchSearch && matchFilter;
   });
 
-  function openNew() {
-    setEditing(null);
-    setForm({ code:"", type:"Discount", tier:"Any", discountType:"% off", value:"", duration:"One-time", singleUse:false, onePerEmail:true, maxUses:"", starts:"", expires:"", campaign:"", notes:"", promoMsg:"", bulkCount:"" });
-    setShowModal(true);
-  }
-
-  function openEdit(c, e) {
-    e.stopPropagation();
-    setEditing(c.id);
-    setForm({ code:c.code, type:c.type, tier:c.tier, discountType:c.discountType, value:c.value, duration:c.duration, singleUse:c.singleUse, onePerEmail:c.onePerEmail, maxUses:c.maxUses||"", starts:c.starts||"", expires:c.expires||"", campaign:c.campaign||"", notes:c.notes||"", promoMsg:c.promoMsg||"", bulkCount:"" });
-    setShowModal(true);
-  }
+  function openNew() { setEditing(null); setForm({ code:"", type:"Discount", tier:"Any", discountType:"% off", value:"", duration:"One-time", singleUse:false, onePerEmail:true, maxUses:"", starts:"", expires:"", campaign:"", notes:"", promoMsg:"", bulkCount:"" }); setShowModal(true); }
+  function openEdit(c, e) { e.stopPropagation(); setEditing(c.id); setForm({ code:c.code, type:c.type, tier:c.tier, discountType:c.discountType, value:c.value, duration:c.duration, singleUse:c.singleUse, onePerEmail:c.onePerEmail, maxUses:c.maxUses||"", starts:c.starts||"", expires:c.expires||"", campaign:c.campaign||"", notes:c.notes||"", promoMsg:c.promoMsg||"", bulkCount:"" }); setShowModal(true); }
 
   function saveCode() {
     if (!form.code.trim()) return;
     if (editing) {
       setCodes(p => p.map(c => c.id === editing ? { ...c, ...form, maxUses: form.maxUses ? parseInt(form.maxUses) : null } : c));
+    } else if (form.bulkCount && parseInt(form.bulkCount) > 1) {
+      const newCodes = Array.from({ length: parseInt(form.bulkCount) }, (_, i) => ({ id: Date.now()+i, ...form, code: form.code+"-"+String(i+1).padStart(3,"0"), uses:0, active:true, assigned:[], maxUses:1, singleUse:true }));
+      setCodes(p => [...p, ...newCodes]);
     } else {
-      if (form.bulkCount && parseInt(form.bulkCount) > 1) {
-        const newCodes = Array.from({ length: parseInt(form.bulkCount) }, (_, i) => ({
-          id: Date.now() + i,
-          ...form,
-          code: form.code + "-" + String(i+1).padStart(3,"0"),
-          uses: 0, active: true, assigned: [],
-          maxUses: 1, singleUse: true,
-        }));
-        setCodes(p => [...p, ...newCodes]);
-      } else {
-        setCodes(p => [...p, { id: Date.now(), ...form, uses:0, active:true, assigned:[], maxUses: form.maxUses ? parseInt(form.maxUses) : null }]);
-      }
+      setCodes(p => [...p, { id: Date.now(), ...form, uses:0, active:true, assigned:[], maxUses: form.maxUses ? parseInt(form.maxUses) : null }]);
     }
     setShowModal(false);
   }
 
-  function generateCode() {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    const code = Array.from({length:8}, () => chars[Math.floor(Math.random()*chars.length)]).join("");
-    setForm(f => ({ ...f, code }));
-  }
-
-  function toggleActive(id, e) {
-    e.stopPropagation();
-    setCodes(p => p.map(c => c.id === id ? { ...c, active: !c.active } : c));
-  }
-
-  function deleteCode(id, e) {
-    e.stopPropagation();
-    if (window.confirm("Delete this code?")) setCodes(p => p.filter(c => c.id !== id));
-  }
-
-  function updateCode(updated) {
-    setCodes(p => p.map(c => c.id === updated.id ? updated : c));
-    setSelectedCode(updated);
-  }
-
+  function generateCode() { const chars="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"; setForm(f=>({...f,code:Array.from({length:8},()=>chars[Math.floor(Math.random()*chars.length)]).join("")})); }
+  function toggleActive(id, e) { e.stopPropagation(); setCodes(p => p.map(c => c.id === id ? { ...c, active: !c.active } : c)); }
+  function deleteCode(id, e) { e.stopPropagation(); if (window.confirm("Delete this code?")) setCodes(p => p.filter(c => c.id !== id)); }
+  function updateCode(updated) { setCodes(p => p.map(c => c.id === updated.id ? updated : c)); setSelectedCode(updated); }
   function exportCSV() {
     const headers = ["Code","Type","Tier","Discount","Value","Uses","Max Uses","Active","Expires","Campaign","Notes"];
-    const rows = codes.map(c => [c.code, c.type, c.tier, c.discountType, c.value, c.uses, c.maxUses||"Unlimited", c.active?"Yes":"No", c.expires||"No expiry", c.campaign, c.notes]);
-    const csv = [headers, ...rows].map(r => r.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\n");
-    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download = "sidekix-promo-codes.csv"; a.click();
+    const rows = codes.map(c => [c.code,c.type,c.tier,c.discountType,c.value,c.uses,c.maxUses||"Unlimited",c.active?"Yes":"No",c.expires||"No expiry",c.campaign,c.notes]);
+    const csv = [headers,...rows].map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\n");
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download="sidekix-promo-codes.csv"; a.click();
   }
 
   if (selectedCode) {
@@ -1890,10 +1871,10 @@ function PromoCodesTab({ codes, setCodes }) {
     return <PromoCodeDetail code={fresh} onBack={() => setSelectedCode(null)} onUpdate={updateCode} />;
   }
 
-  const totalUses     = codes.reduce((a,c) => a+c.uses, 0);
-  const activeCodes   = codes.filter(c => c.active).length;
-  const campaigns     = [...new Set(codes.map(c=>c.campaign).filter(Boolean))].length;
-  const presaleValue  = codes.filter(c=>c.type==="Presale").reduce((a,c)=>a+c.uses,0);
+  const totalUses   = codes.reduce((a,c) => a+c.uses, 0);
+  const activeCodes = codes.filter(c => c.active).length;
+  const campaigns   = [...new Set(codes.map(c=>c.campaign).filter(Boolean))].length;
+  const presaleUses = codes.filter(c=>c.type==="Presale").reduce((a,c)=>a+c.uses,0);
 
   return (
     <div style={{ padding:"28px 40px", maxWidth:1200, margin:"0 auto" }}>
@@ -1909,13 +1890,7 @@ function PromoCodesTab({ codes, setCodes }) {
       </div>
 
       <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:14, marginBottom:24 }}>
-        {[
-          { label:"Total codes",   value:codes.length },
-          { label:"Active",        value:activeCodes },
-          { label:"Total uses",    value:totalUses },
-          { label:"Campaigns",     value:campaigns },
-          { label:"Presale uses",  value:presaleValue },
-        ].map(s => (
+        {[{label:"Total codes",value:codes.length},{label:"Active",value:activeCodes},{label:"Total uses",value:totalUses},{label:"Campaigns",value:campaigns},{label:"Presale uses",value:presaleUses}].map(s => (
           <div key={s.label} style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:8, padding:"14px 18px" }}>
             <div style={{ fontSize:22, fontWeight:600, color:GOLD, fontFamily:mono }}>{s.value}</div>
             <div style={{ fontSize:12, color:TEXT_MUTED, marginTop:4 }}>{s.label}</div>
@@ -1946,9 +1921,9 @@ function PromoCodesTab({ codes, setCodes }) {
               const progress = c.maxUses ? Math.round((c.uses/c.maxUses)*100) : null;
               return (
                 <tr key={c.id} onClick={() => setSelectedCode(c)}
-                  style={{ borderBottom: i<filtered.length-1 ? "1px solid "+BORDER : "none", cursor:"pointer", background: i%2===0 ? "transparent" : "rgba(255,255,255,0.01)" }}
+                  style={{ borderBottom: i<filtered.length-1 ? "1px solid "+BORDER : "none", cursor:"pointer" }}
                   onMouseEnter={e => e.currentTarget.style.background="rgba(201,169,110,0.04)"}
-                  onMouseLeave={e => e.currentTarget.style.background= i%2===0 ? "transparent" : "rgba(255,255,255,0.01)"}>
+                  onMouseLeave={e => e.currentTarget.style.background="transparent"}>
                   <td style={{ padding:"11px 12px", overflow:"hidden" }}>
                     <div style={{ fontFamily:mono, fontSize:13, fontWeight:600, color:GOLD, letterSpacing:"0.04em", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.code}</div>
                     {c.notes && <div style={{ fontSize:10, color:TEXT_MUTED, marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.notes}</div>}
@@ -1960,14 +1935,13 @@ function PromoCodesTab({ codes, setCodes }) {
                   <td style={{ padding:"11px 12px", fontFamily:mono, fontSize:11, color:TEXT_PRIMARY, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.discountType === "% off" ? c.value+"%" : c.discountType === "$ off" ? "$"+c.value : c.value}</td>
                   <td style={{ padding:"11px 12px" }}>
                     <div style={{ fontSize:11, color:TEXT_PRIMARY }}>{c.uses}{c.maxUses ? " / "+c.maxUses : ""}</div>
-                    {progress !== null && (
-                      <div style={{ marginTop:3, height:3, background:BORDER, borderRadius:2, width:60 }}>
-                        <div style={{ height:3, background:GOLD, borderRadius:2, width:progress+"%" }} />
-                      </div>
-                    )}
+                    {progress !== null && <div style={{ marginTop:3, height:3, background:BORDER, borderRadius:2, width:60 }}><div style={{ height:3, background:GOLD, borderRadius:2, width:progress+"%" }} /></div>}
                   </td>
                   <td style={{ padding:"11px 12px" }}>
-                    <span style={{ fontFamily:mono, fontSize:10, color:GOLD, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"block" }}>…/join?code={c.code}</span>
+                    <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                      <span style={{ fontFamily:mono, fontSize:10, color:GOLD, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1 }}>…/join?code={c.code}</span>
+                      <button onClick={e => { e.stopPropagation(); navigator.clipboard?.writeText("https://sidekixhq.com/join?code="+c.code); }} title="Copy link" style={{ background:"none", border:"none", color:TEXT_MUTED, cursor:"pointer", fontSize:12, padding:"2px 4px", flexShrink:0 }}>⎘</button>
+                    </div>
                   </td>
                   <td style={{ padding:"11px 12px", fontSize:11, color:TEXT_SECONDARY, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.expires || "No expiry"}</td>
                   <td style={{ padding:"11px 12px", fontSize:11, color:TEXT_SECONDARY, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.campaign || "—"}</td>
@@ -1977,21 +1951,13 @@ function PromoCodesTab({ codes, setCodes }) {
                     </button>
                   </td>
                   <td style={{ padding:"11px 12px" }}>
-                    <RowMenu
-                      archived={false}
-                      onArchive={() => {}}
-                      onRestore={() => {}}
-                      onDelete={e => deleteCode(c.id, e)}
-                      onUnsubscribe={null}
-                      extraActions={[{ label:"Edit", onClick: e => openEdit(c, e) }]}
-                    />
+                    <RowMenu archived={false} onArchive={()=>{}} onRestore={()=>{}} onDelete={e => deleteCode(c.id,e)} onUnsubscribe={null}
+                      extraActions={[{ label:"Edit", onClick: e => openEdit(c,e) }]} />
                   </td>
                 </tr>
               );
             })}
-            {filtered.length === 0 && (
-              <tr><td colSpan={10} style={{ padding:"40px", textAlign:"center", color:TEXT_MUTED, fontSize:13 }}>No codes found</td></tr>
-            )}
+            {filtered.length === 0 && <tr><td colSpan={10} style={{ padding:"40px", textAlign:"center", color:TEXT_MUTED, fontSize:13 }}>No codes found</td></tr>}
           </tbody>
         </table>
       </div>
@@ -2002,7 +1968,6 @@ function PromoCodesTab({ codes, setCodes }) {
             <div style={{ fontFamily:serif, fontSize:20, fontWeight:300, color:GOLD, marginBottom:6 }}>{editing ? "Edit Code" : "New Promo Code"}</div>
             <div style={{ fontSize:12, color:TEXT_MUTED, marginBottom:20 }}>Configure how this code behaves and what it unlocks</div>
 
-            {/* Basics */}
             <div style={{ fontSize:10, fontWeight:600, color:TEXT_MUTED, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:10, paddingBottom:6, borderBottom:"1px solid "+BORDER }}>Code basics</div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:14 }}>
               <div>
@@ -2022,97 +1987,41 @@ function PromoCodesTab({ codes, setCodes }) {
               </div>
             </div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:20 }}>
-              <div>
-                <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Campaign</div>
-                <input value={form.campaign} onChange={e => setForm(f=>({...f,campaign:e.target.value}))}
-                  style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} placeholder="Launch, Waitlist…" />
-              </div>
-              <div>
-                <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Notes</div>
-                <input value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))}
-                  style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} placeholder="Internal note" />
-              </div>
+              <div><div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Campaign</div><input value={form.campaign} onChange={e => setForm(f=>({...f,campaign:e.target.value}))} style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} placeholder="Launch, Waitlist…" /></div>
+              <div><div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Notes</div><input value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} placeholder="Internal note" /></div>
             </div>
 
-            {/* What it unlocks */}
             <div style={{ fontSize:10, fontWeight:600, color:TEXT_MUTED, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:10, paddingBottom:6, borderBottom:"1px solid "+BORDER }}>What it unlocks</div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:14, marginBottom:14 }}>
-              <div>
-                <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Applies to</div>
-                <select value={form.tier} onChange={e => setForm(f=>({...f,tier:e.target.value}))}
-                  style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }}>
-                  <option>Any tier</option><option>Access</option><option>Core</option><option>Premium</option>
-                </select>
-              </div>
-              <div>
-                <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Discount type</div>
-                <select value={form.discountType} onChange={e => setForm(f=>({...f,discountType:e.target.value}))}
-                  style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }}>
-                  <option>% off</option><option>$ off</option><option>Free trial</option><option>Free month</option>
-                </select>
-              </div>
-              <div>
-                <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Value</div>
-                <input value={form.value} onChange={e => setForm(f=>({...f,value:e.target.value}))}
-                  style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} placeholder="20 or 30 days" />
-              </div>
+              <div><div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Applies to</div><select value={form.tier} onChange={e => setForm(f=>({...f,tier:e.target.value}))} style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }}><option>Any tier</option><option>Access</option><option>Core</option><option>Premium</option></select></div>
+              <div><div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Discount type</div><select value={form.discountType} onChange={e => setForm(f=>({...f,discountType:e.target.value}))} style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }}><option>% off</option><option>$ off</option><option>Free trial</option><option>Free month</option></select></div>
+              <div><div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Value</div><input value={form.value} onChange={e => setForm(f=>({...f,value:e.target.value}))} style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} placeholder="20 or 30 days" /></div>
             </div>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:20 }}>
-              <div>
-                <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Duration</div>
-                <select value={form.duration} onChange={e => setForm(f=>({...f,duration:e.target.value}))}
-                  style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }}>
-                  <option>One-time</option><option>3 months</option><option>6 months</option><option>Forever</option>
-                </select>
-              </div>
-              <div>
-                <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Promo message at redemption</div>
-                <input value={form.promoMsg} onChange={e => setForm(f=>({...f,promoMsg:e.target.value}))}
-                  style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} placeholder="You locked in founder pricing!" />
-              </div>
+              <div><div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Duration</div><select value={form.duration} onChange={e => setForm(f=>({...f,duration:e.target.value}))} style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }}><option>One-time</option><option>3 months</option><option>6 months</option><option>Forever</option></select></div>
+              <div><div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Promo message</div><input value={form.promoMsg} onChange={e => setForm(f=>({...f,promoMsg:e.target.value}))} style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} placeholder="You locked in founder pricing!" /></div>
             </div>
 
-            {/* Usage limits */}
             <div style={{ fontSize:10, fontWeight:600, color:TEXT_MUTED, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:10, paddingBottom:6, borderBottom:"1px solid "+BORDER }}>Usage limits</div>
-            {[
-              { key:"singleUse",    label:"Single use",     desc:"Each code can only be redeemed once" },
-              { key:"onePerEmail",  label:"One per email",  desc:"Prevent same email redeeming multiple times" },
-            ].map(t => (
+            {[{key:"singleUse",label:"Single use",desc:"Each code can only be redeemed once"},{key:"onePerEmail",label:"One per email",desc:"Prevent same email redeeming multiple times"}].map(t => (
               <div key={t.key} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 12px", background:DARK_BG, borderRadius:6, marginBottom:8 }}>
-                <div>
-                  <div style={{ fontSize:13, color:TEXT_PRIMARY }}>{t.label}</div>
-                  <div style={{ fontSize:11, color:TEXT_MUTED, marginTop:2 }}>{t.desc}</div>
-                </div>
-                <button onClick={() => setForm(f=>({...f,[t.key]:!f[t.key]}))}
-                  style={{ width:36, height:20, borderRadius:10, background: form[t.key] ? GOLD : BORDER, border:"none", cursor:"pointer", position:"relative", flexShrink:0 }}>
+                <div><div style={{ fontSize:13, color:TEXT_PRIMARY }}>{t.label}</div><div style={{ fontSize:11, color:TEXT_MUTED, marginTop:2 }}>{t.desc}</div></div>
+                <button onClick={() => setForm(f=>({...f,[t.key]:!f[t.key]}))} style={{ width:36, height:20, borderRadius:10, background: form[t.key] ? GOLD : BORDER, border:"none", cursor:"pointer", position:"relative", flexShrink:0 }}>
                   <span style={{ position:"absolute", width:14, height:14, background:"white", borderRadius:"50%", top:3, left: form[t.key] ? 19 : 3, transition:"left 0.15s" }} />
                 </button>
               </div>
             ))}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:14, marginTop:10, marginBottom:20 }}>
-              <div>
-                <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Max total uses</div>
-                <input value={form.maxUses} onChange={e => setForm(f=>({...f,maxUses:e.target.value}))} type="number"
-                  style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} placeholder="Unlimited" />
-              </div>
-              <div>
-                <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Start date</div>
-                <input value={form.starts} onChange={e => setForm(f=>({...f,starts:e.target.value}))} type="date"
-                  style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} />
-              </div>
-              <div>
-                <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>End date</div>
-                <input value={form.expires} onChange={e => setForm(f=>({...f,expires:e.target.value}))} type="date"
-                  style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} />
-              </div>
+              <div><div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Max total uses</div><input value={form.maxUses} onChange={e => setForm(f=>({...f,maxUses:e.target.value}))} type="number" style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} placeholder="Unlimited" /></div>
+              <div><div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>Start date</div><input value={form.starts} onChange={e => setForm(f=>({...f,starts:e.target.value}))} type="date" style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} /></div>
+              <div><div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5 }}>End date</div><input value={form.expires} onChange={e => setForm(f=>({...f,expires:e.target.value}))} type="date" style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} /></div>
             </div>
 
-            {/* Bulk generate */}
             {!editing && (
               <>
                 <div style={{ fontSize:10, fontWeight:600, color:TEXT_MUTED, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:10, paddingBottom:6, borderBottom:"1px solid "+BORDER }}>Bulk generate</div>
                 <div style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 12px", background:DARK_BG, borderRadius:6, marginBottom:20 }}>
-                  <div style={{ flex:1, fontSize:13, color:TEXT_SECONDARY }}>Generate unique single-use codes for this campaign</div>
+                  <div style={{ flex:1, fontSize:13, color:TEXT_SECONDARY }}>Generate unique single-use codes</div>
                   <input value={form.bulkCount} onChange={e => setForm(f=>({...f,bulkCount:e.target.value}))} type="number" min="1" max="500"
                     style={{ width:60, padding:"6px 8px", background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none", textAlign:"center" }} placeholder="1" />
                 </div>
@@ -2129,6 +2038,172 @@ function PromoCodesTab({ codes, setCodes }) {
     </div>
   );
 }
+
+
+function SettingsTab() {
+  const [saved, setSaved]     = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [serverStatus, setServerStatus] = useState(null);
+
+  async function testConnection() {
+    setTesting(true);
+    setServerStatus(null);
+    try {
+      const r = await fetch(SERVER_URL);
+      const d = await r.json();
+      setServerStatus(d.status ? "online" : "error");
+    } catch(e) {
+      setServerStatus("offline");
+    }
+    setTesting(false);
+  }
+
+  return (
+    <div style={{ padding:"32px 40px", maxWidth:640 }}>
+      <div style={{ fontFamily:serif, fontSize:26, fontWeight:300, color:GOLD, letterSpacing:"0.02em", marginBottom:28 }}>Settings</div>
+
+      {/* Server status */}
+      <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:8, padding:20, marginBottom:20 }}>
+        <div style={{ fontSize:11, fontWeight:600, color:TEXT_MUTED, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:14 }}>System status</div>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+          <div>
+            <div style={{ fontSize:13, color:TEXT_PRIMARY, fontWeight:500 }}>Email server</div>
+            <div style={{ fontSize:11, color:TEXT_MUTED, fontFamily:mono, marginTop:2 }}>{SERVER_URL}</div>
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            {serverStatus && (
+              <span style={{ fontSize:12, color: serverStatus==="online" ? "#7EC87E" : "#E07070", display:"flex", alignItems:"center", gap:4 }}>
+                <span style={{ width:7, height:7, borderRadius:"50%", background: serverStatus==="online" ? "#7EC87E" : "#E07070", display:"inline-block" }}></span>
+                {serverStatus === "online" ? "Online" : "Offline"}
+              </span>
+            )}
+            <button onClick={testConnection} disabled={testing}
+              style={{ padding:"6px 14px", background:"none", border:"1px solid "+BORDER, borderRadius:6, color:TEXT_SECONDARY, fontSize:12, cursor:"pointer" }}>
+              {testing ? "Testing…" : "Test connection"}
+            </button>
+          </div>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          <div>
+            <div style={{ fontSize:13, color:TEXT_PRIMARY, fontWeight:500 }}>Make webhook</div>
+            <div style={{ fontSize:11, color:TEXT_MUTED, fontFamily:mono, marginTop:2 }}>hook.us2.make.com/2f7zckyzjj…</div>
+          </div>
+          <span style={{ fontSize:12, color:TEXT_MUTED }}>Connected</span>
+        </div>
+      </div>
+
+      {/* Sender addresses */}
+      <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:8, padding:20, marginBottom:20 }}>
+        <div style={{ fontSize:11, fontWeight:600, color:TEXT_MUTED, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:14 }}>Sender addresses</div>
+        {[
+          { label:"Member emails", addr:"joinus@sidekixhq.com",     desc:"Subscribers, waitlist, contact, follow-ups" },
+          { label:"Advisor emails", addr:"Advisors@sidekixhq.com",   desc:"Applications, offers, interviews, rejections" },
+        ].map(s => (
+          <div key={s.addr} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 0", borderBottom:"1px solid "+BORDER }}>
+            <div>
+              <div style={{ fontSize:13, color:TEXT_PRIMARY, fontWeight:500 }}>{s.label}</div>
+              <div style={{ fontSize:11, fontFamily:mono, color:GOLD, marginTop:2 }}>{s.addr}</div>
+              <div style={{ fontSize:11, color:TEXT_MUTED, marginTop:2 }}>{s.desc}</div>
+            </div>
+            <span style={{ fontSize:11, color:"#7EC87E", display:"flex", alignItems:"center", gap:4 }}>
+              <span style={{ width:7, height:7, borderRadius:"50%", background:"#7EC87E", display:"inline-block" }}></span>
+              Verified
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Portal access */}
+      <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:8, padding:20 }}>
+        <div style={{ fontSize:11, fontWeight:600, color:TEXT_MUTED, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:14 }}>Portal access</div>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+          <div>
+            <div style={{ fontSize:13, color:TEXT_PRIMARY, fontWeight:500 }}>Portal URL</div>
+            <div style={{ fontSize:11, fontFamily:mono, color:GOLD, marginTop:2 }}>sidekixhq.github.io/sidekix-portal</div>
+          </div>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          <div>
+            <div style={{ fontSize:13, color:TEXT_PRIMARY, fontWeight:500 }}>Document center</div>
+            <div style={{ fontSize:11, fontFamily:mono, color:GOLD, marginTop:2 }}>sidekixhq.github.io/sidekix-docs</div>
+          </div>
+          <a href="https://sidekixhq.github.io/sidekix-docs/" target="_blank"
+            style={{ fontSize:11, color:TEXT_MUTED, textDecoration:"none", border:"1px solid "+BORDER, borderRadius:4, padding:"4px 10px" }}>
+            Open ↗
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+function Dashboard({ currentUser, onSignOut }) {
+  const [tab, setTab]       = useState("subscribers");
+  const [theme, setTheme]   = useState("dark");
+  const [promoCodes, setPromoCodes] = useState(INITIAL_CODES);
+
+  // Apply theme tokens globally before each render
+  const t = THEMES[theme];
+  GOLD           = t.GOLD;
+  GOLD_LIGHT     = t.GOLD_LIGHT;
+  DARK_BG        = t.DARK_BG;
+  DARK_CARD      = t.DARK_CARD;
+  DARK_CARD2     = t.DARK_CARD2;
+  BORDER         = t.BORDER;
+  TEXT_PRIMARY   = t.TEXT_PRIMARY;
+  TEXT_SECONDARY = t.TEXT_SECONDARY;
+  TEXT_MUTED     = t.TEXT_MUTED;
+
+  const TABS = [
+    { id:"templates",   label:"Templates"   },
+    { id:"subscribers", label:"Subscribers" },
+    { id:"promocodes",  label:"Promo Codes" },
+    { id:"sendlog",     label:"Send Log"    },
+    { id:"settings",    label:"Settings"    },
+  ];
+
+  return (
+    <div style={{ minHeight:"100vh", background:DARK_BG, color:TEXT_PRIMARY, fontFamily:font }} key={theme}>
+      {/* Nav */}
+      <div style={{ borderBottom:"1px solid "+BORDER, padding:"0 40px", display:"flex", alignItems:"center", justifyContent:"space-between", background:DARK_CARD }}>
+        <div style={{ display:"flex", alignItems:"center", gap:32 }}>
+          <div style={{ fontFamily:serif, fontSize:22, fontWeight:300, color:GOLD, padding:"14px 0", letterSpacing:"0.04em" }}>
+            SideKix<span style={{ fontSize:10, color:TEXT_MUTED, fontFamily:font, fontWeight:400, marginLeft:6, letterSpacing:"0.1em", textTransform:"uppercase" }}>Team Portal</span>
+          </div>
+          <nav style={{ display:"flex", gap:0 }}>
+            {TABS.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                style={{ padding:"16px 18px", background:"none", border:"none", borderBottom: tab===t.id ? "2px solid "+GOLD : "2px solid transparent", color: tab===t.id ? GOLD : TEXT_MUTED, fontSize:12, fontWeight: tab===t.id ? 600 : 400, cursor:"pointer", fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase" }}>
+                {t.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+          <span style={{ fontSize:12, color:TEXT_MUTED, fontFamily:mono }}>{currentUser}</span>
+          <button onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            style={{ fontSize:16, padding:"6px 10px", background:"none", border:"1px solid "+BORDER, borderRadius:4, color:TEXT_MUTED, cursor:"pointer", lineHeight:1 }}>
+            {theme === "dark" ? "☀" : "☾"}
+          </button>
+          <button onClick={onSignOut} style={{ fontSize:11, padding:"6px 14px", background:"none", border:"1px solid "+BORDER, borderRadius:4, color:TEXT_MUTED, cursor:"pointer", fontFamily:font, letterSpacing:"0.06em", textTransform:"uppercase" }}>Sign Out</button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div>
+        {tab === "templates"   && <TemplatesTab />}
+        {tab === "subscribers" && <SubscribersTab currentUser={currentUser} promoCodes={promoCodes} setPromoCodes={setPromoCodes} />}
+        {tab === "promocodes"  && <PromoCodesTab codes={promoCodes} setCodes={setPromoCodes} />}
+        {tab === "sendlog"     && <SendLogTab />}
+        {tab === "settings"    && <SettingsTab />}
+      </div>
+    </div>
+  );
+}
+
+
 
 
 // ─── App root — hooks before conditional return ───────────────────────────────
