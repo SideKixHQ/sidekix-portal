@@ -14,16 +14,14 @@
     ::-webkit-scrollbar-track { background: #1C1A14; }
     ::-webkit-scrollbar-thumb { background: #3A3528; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #6B6454; }
+    tr:hover .row-actions { opacity: 1 !important; }
   </style>
 </head>
 <body>
   <div id="root"></div>
-
-  <!-- React + Babel from CDN -->
   <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
-
   <script type="text/babel">
 const { useState, useMemo, useRef, useEffect } = React;
 
@@ -57,6 +55,7 @@ const STATUS_COLORS = {
   Active:       { bg: "rgba(100,200,100,0.1)",  color: "#7EC87E", border: "rgba(100,200,100,0.25)" },
   Unsubscribed: { bg: "rgba(220,100,100,0.1)",  color: "#E07070", border: "rgba(220,100,100,0.25)" },
   Bounced:      { bg: "rgba(180,120,60,0.12)",  color: "#C8986E", border: "rgba(180,120,60,0.3)"   },
+  Archived:     { bg: "rgba(107,100,84,0.15)",  color: "#6B6454", border: "rgba(107,100,84,0.3)"   },
 };
 const REVIEW_COLORS = {
   "Pending":      { bg: "rgba(201,169,110,0.12)", color: "#C9A96E", border: "rgba(201,169,110,0.3)" },
@@ -841,9 +840,33 @@ function SubscribersTab({ currentUser }) {
   const [sort,         setSort]         = useState("Newest first");
   const [selectedIds,  setSelectedIds]  = useState(new Set());
   const [activePerson, setActivePerson] = useState(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  function archivePerson(id) {
+    setSubs(p => p.map(s => s.id === id ? Object.assign({}, s, { status:"Archived", archived:true }) : s));
+    if (activePerson && activePerson.id === id) setActivePerson(null);
+  }
+  function archiveSelected() {
+    setSelectedIds(prev => { prev.forEach(id => archivePerson(id)); return new Set(); });
+  }
+  function deletePerson(id) {
+    setSubs(p => p.filter(s => s.id !== id));
+    if (activePerson && activePerson.id === id) setActivePerson(null);
+    setConfirmDelete(null);
+  }
+  function deleteSelected() {
+    setSubs(p => p.filter(s => !selectedIds.has(s.id)));
+    setSelectedIds(new Set());
+    setActivePerson(null);
+  }
+  function restorePerson(id) {
+    setSubs(p => p.map(s => s.id === id ? Object.assign({}, s, { status:"Active", archived:false }) : s));
+  }
 
   const filtered = useMemo(() => {
     let list = subs.filter(s => {
+      if (!showArchived && s.archived) return false;
       const mSrc  = sourceFilter === "All sources"  || s.source === sourceFilter;
       const mStt  = statusFilter === "All statuses" || s.status === statusFilter;
       const mRev  = reviewFilter === "All reviews"  || (s.source === "Application" && s.reviewStatus === reviewFilter);
@@ -908,10 +931,15 @@ function SubscribersTab({ currentUser }) {
             <button onClick={downloadCSV} style={{ padding:"9px 16px", fontSize:11, fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase", borderRadius:4, border:"none", background:GOLD, color:"#1C1A14", cursor:"pointer", fontFamily:font, whiteSpace:"nowrap" }}>
               ↓ Export {selectedIds.size > 0 ? selectedIds.size + " selected" : "all " + filtered.length}
             </button>
+            <button onClick={() => setShowArchived(a => !a)} style={{ padding:"9px 14px", fontSize:11, fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase", borderRadius:4, border:"1px solid "+BORDER, background:showArchived ? DARK_CARD2 : "transparent", color:showArchived ? GOLD : TEXT_MUTED, cursor:"pointer", fontFamily:font, whiteSpace:"nowrap" }}>
+              {showArchived ? "Hide Archived" : "Show Archived"}
+            </button>
           </div>
           {selectedIds.size > 0 && (
             <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:"0.75rem", padding:"8px 12px", background:"rgba(201,169,110,0.08)", border:"1px solid rgba(201,169,110,0.2)", borderRadius:4, fontSize:12, color:GOLD_LIGHT, fontFamily:font }}>
               <span>{selectedIds.size} contact{selectedIds.size !== 1 ? "s" : ""} selected</span>
+              <button onClick={archiveSelected} style={{ fontSize:10, padding:"4px 12px", borderRadius:3, border:"1px solid "+BORDER, background:"transparent", color:TEXT_SECONDARY, cursor:"pointer", fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em" }}>Archive Selected</button>
+              <button onClick={() => { if(window.confirm("Delete " + selectedIds.size + " contact(s)? This cannot be undone.")) deleteSelected(); }} style={{ fontSize:10, padding:"4px 12px", borderRadius:3, border:"1px solid rgba(220,100,100,0.3)", background:"rgba(220,100,100,0.08)", color:"#E07070", cursor:"pointer", fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em" }}>Delete Selected</button>
               <button onClick={() => setSelectedIds(new Set())} style={{ marginLeft:"auto", background:"none", border:"none", color:TEXT_MUTED, cursor:"pointer", fontSize:11, fontFamily:font }}>Clear</button>
             </div>
           )}
@@ -961,7 +989,20 @@ function SubscribersTab({ currentUser }) {
                               </div>
                             : <span style={{ color:TEXT_MUTED, fontSize:12 }}>—</span>}
                         </td>
-                        <td style={{ padding:"10px 14px", color:TEXT_MUTED, fontFamily:font, fontSize:11, whiteSpace:"nowrap" }}>{s.joined}</td>
+                        <td style={{ padding:"10px 14px", color:TEXT_MUTED, fontFamily:font, fontSize:11, whiteSpace:"nowrap" }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                            <span>{s.joined}</span>
+                            <div style={{ display:"flex", gap:4, marginLeft:4, opacity:0 }} className="row-actions"
+                              onMouseEnter={e => e.currentTarget.style.opacity=1}
+                              onMouseLeave={e => e.currentTarget.style.opacity=0}>
+                              {s.archived
+                                ? <button onClick={e => { e.stopPropagation(); restorePerson(s.id); }} title="Restore" style={{ fontSize:10, padding:"2px 7px", borderRadius:3, border:"1px solid "+BORDER, background:"transparent", color:TEXT_SECONDARY, cursor:"pointer", fontFamily:font }}>Restore</button>
+                                : <button onClick={e => { e.stopPropagation(); archivePerson(s.id); }} title="Archive" style={{ fontSize:10, padding:"2px 7px", borderRadius:3, border:"1px solid "+BORDER, background:"transparent", color:TEXT_MUTED, cursor:"pointer", fontFamily:font }}>Archive</button>
+                              }
+                              <button onClick={e => { e.stopPropagation(); if(window.confirm("Delete " + s.firstName + " " + s.lastName + "? This cannot be undone.")) deletePerson(s.id); }} title="Delete" style={{ fontSize:10, padding:"2px 7px", borderRadius:3, border:"1px solid rgba(220,100,100,0.3)", background:"rgba(220,100,100,0.08)", color:"#E07070", cursor:"pointer", fontFamily:font }}>Delete</button>
+                            </div>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })
