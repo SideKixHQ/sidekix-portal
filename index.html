@@ -920,10 +920,12 @@ function RowMenu({ archived, onArchive, onRestore, onDelete, onUnsubscribe, isUn
 function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
   const [subs,         setSubs]         = useState(MOCK_SUBSCRIBERS);
   const [search,       setSearch]       = useState("");
-  const [showPromoModal, setShowPromoModal] = useState(false);
-  const [promoPickCode,  setPromoPickCode]  = useState("");
-  const [promoSending,   setPromoSending]   = useState(false);
-  const [promoSentMsg,   setPromoSentMsg]   = useState("");
+  const [showPromoModal,  setShowPromoModal]  = useState(false);
+  const [promoPickCode,   setPromoPickCode]   = useState("");
+  const [promoSending,    setPromoSending]    = useState(false);
+  const [promoSentMsg,    setPromoSentMsg]    = useState("");
+  const [promoModalMode,  setPromoModalMode]  = useState("existing");
+  const [newCodeForm,     setNewCodeForm]     = useState({ code:"", type:"Discount", tier:"Any tier", discountType:"% off", value:"", campaign:"", expires:"", singleUse:false, onePerEmail:true, maxUses:null, duration:"One-time", promoMsg:"", starts:"", notes:"", assigned:[] });
   const [sourceFilter, setSourceFilter] = useState("All sources");
   const [statusFilter, setStatusFilter] = useState("All statuses");
   const [reviewFilter, setReviewFilter] = useState("All reviews");
@@ -952,7 +954,17 @@ function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
     setSelectedIds(prev => { prev.forEach(id => archivePerson(id)); return new Set(); });
   }
   async function sendPromoToSelected() {
-    if (!promoPickCode) return;
+    if (promoModalMode === "existing" && !promoPickCode) return;
+    if (promoModalMode === "create" && !newCodeForm.code) return;
+
+    // If creating a new code, add it to promoCodes first
+    let codeToSend = promoPickCode;
+    if (promoModalMode === "create") {
+      codeToSend = newCodeForm.code;
+      const newCode = { id: Date.now(), ...newCodeForm, uses:0, active:true, maxUses: newCodeForm.maxUses || null };
+      if (setPromoCodes) setPromoCodes(prev => [...prev, newCode]);
+    }
+    if (!codeToSend) return;
     setPromoSending(true);
     const selectedSubs = subs.filter(s => selectedIds.has(s.id));
     const today = new Date().toLocaleDateString("en-US", { month:"short", day:"numeric" });
@@ -966,7 +978,7 @@ function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
             from: "joinus@sidekixhq.com",
             fromName: "SideKix",
             subject: "Your exclusive SideKix promo code",
-            body: "Hi " + sub.firstName + ",\n\nHere is your exclusive SideKix promo code:\n\n" + promoPickCode + "\n\nUse it when you sign up at sidekixhq.com/join?code=" + promoPickCode + "\n\nTalk soon,\nThe SideKix Team\n\n---\nUnsubscribe: https://sidekix-email-server.onrender.com/unsubscribe?email=" + sub.email + "\nSideKix - Character Limit LLC - Wilmington, NC",
+            body: "Hi " + sub.firstName + ",\n\nHere is your exclusive SideKix promo code:\n\n" + codeToSend + "\n\nUse it when you sign up at sidekixhq.com/join?code=" + codeToSend + "\n\nTalk soon,\nThe SideKix Team\n\n---\nUnsubscribe: https://sidekix-email-server.onrender.com/unsubscribe?email=" + sub.email + "\nSideKix - Character Limit LLC - Wilmington, NC",
           }),
         });
       } catch(e) { console.warn("Failed to send to", sub.email); }
@@ -974,7 +986,7 @@ function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
     // Track in promo code assigned list
     if (setPromoCodes) {
       setPromoCodes(prev => prev.map(c => {
-        if (c.code !== promoPickCode) return c;
+        if (c.code !== codeToSend) return c;
         const existingEmails = new Set(c.assigned.map(a => a.email));
         const newAssigned = selectedSubs
           .filter(sub => !existingEmails.has(sub.email))
@@ -988,6 +1000,8 @@ function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
       setShowPromoModal(false);
       setPromoPickCode("");
       setPromoSentMsg("");
+      setPromoModalMode("existing");
+      setNewCodeForm({ code:"", type:"Discount", tier:"Any tier", discountType:"% off", value:"", campaign:"", expires:"", singleUse:false, onePerEmail:true, maxUses:null, duration:"One-time", promoMsg:"", starts:"", notes:"", assigned:[] });
       setSelectedIds(new Set());
     }, 2000);
   }
@@ -1162,24 +1176,91 @@ function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
       <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center" }} onClick={() => !promoSending && setShowPromoModal(false)}>
         <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:12, padding:32, width:440, maxWidth:"90vw" }} onClick={e => e.stopPropagation()}>
           <div style={{ fontFamily:serif, fontSize:20, fontWeight:300, color:GOLD, marginBottom:6 }}>Send Promo Code</div>
-          <div style={{ fontSize:13, color:TEXT_MUTED, marginBottom:24 }}>
-            Sending to <strong style={{ color:TEXT_PRIMARY }}>{selectedIds.size} subscriber{selectedIds.size !== 1 ? "s" : ""}</strong>. Each recipient will be tracked in the promo code detail view.
+          <div style={{ fontSize:13, color:TEXT_MUTED, marginBottom:16 }}>
+            Sending to <strong style={{ color:TEXT_PRIMARY }}>{selectedIds.size} subscriber{selectedIds.size !== 1 ? "s" : ""}</strong>. Each recipient will be tracked in the Promo Codes tab.
           </div>
 
-          <div style={{ marginBottom:20 }}>
-            <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:8, textTransform:"uppercase", letterSpacing:"0.06em" }}>Select a code to send</div>
-            <select value={promoPickCode} onChange={e => setPromoPickCode(e.target.value)}
-              style={{ width:"100%", padding:"10px 12px", background:DARK_BG, border:"1px solid "+(promoPickCode ? GOLD : BORDER), borderRadius:6, color: promoPickCode ? TEXT_PRIMARY : TEXT_MUTED, fontSize:13, outline:"none" }}>
-              <option value="">Choose a promo code…</option>
-              {(promoCodes || INITIAL_CODES).filter(c => c.active).map(c => (
-                <option key={c.id} value={c.code}>{c.code} — {c.type} · {c.discountType === "% off" ? c.value+"%" : c.discountType === "$ off" ? "$"+c.value : c.value}{c.campaign ? " · "+c.campaign : ""}</option>
-              ))}
-            </select>
+          {/* Mode tabs */}
+          <div style={{ display:"flex", gap:0, marginBottom:20, border:"1px solid "+BORDER, borderRadius:6, overflow:"hidden" }}>
+            {["Use existing code","Create new code"].map((label, i) => (
+              <button key={i} onClick={() => setPromoModalMode(i === 0 ? "existing" : "create")}
+                style={{ flex:1, padding:"8px 12px", background: (promoModalMode === "existing" && i===0) || (promoModalMode === "create" && i===1) ? GOLD : "none", border:"none", color: (promoModalMode === "existing" && i===0) || (promoModalMode === "create" && i===1) ? DARK_BG : TEXT_SECONDARY, fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                {label}
+              </button>
+            ))}
           </div>
 
-          {promoPickCode && (
-            <div style={{ padding:"10px 14px", background:"rgba(201,169,110,0.08)", border:"1px solid rgba(201,169,110,0.2)", borderRadius:6, marginBottom:20, fontSize:12, color:GOLD }}>
-              Each contact will receive an email with code <strong>{promoPickCode}</strong> and a signup link. Redemptions will appear in the Promo Codes tab under this code.
+          {promoModalMode === "existing" ? (
+            <div style={{ marginBottom:20 }}>
+              <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:8, textTransform:"uppercase", letterSpacing:"0.06em" }}>Select a code</div>
+              <select value={promoPickCode} onChange={e => setPromoPickCode(e.target.value)}
+                style={{ width:"100%", padding:"10px 12px", background:DARK_BG, border:"1px solid "+(promoPickCode ? GOLD : BORDER), borderRadius:6, color: promoPickCode ? TEXT_PRIMARY : TEXT_MUTED, fontSize:13, outline:"none" }}>
+                <option value="">Choose a promo code…</option>
+                {(promoCodes || INITIAL_CODES).filter(c => c.active).map(c => (
+                  <option key={c.id} value={c.code}>{c.code} — {c.type} · {c.discountType === "% off" ? c.value+"%" : c.discountType === "$ off" ? "$"+c.value : c.value}{c.campaign ? " · "+c.campaign : ""}</option>
+                ))}
+              </select>
+              {promoPickCode && (
+                <div style={{ padding:"10px 14px", background:"rgba(201,169,110,0.08)", border:"1px solid rgba(201,169,110,0.2)", borderRadius:6, marginTop:12, fontSize:12, color:GOLD }}>
+                  Each contact receives an email with code <strong>{promoPickCode}</strong> and a signup link.
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ marginBottom:20 }}>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
+                <div>
+                  <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5, textTransform:"uppercase", letterSpacing:"0.06em" }}>Code name *</div>
+                  <div style={{ display:"flex", gap:6 }}>
+                    <input value={newCodeForm.code} onChange={e => setNewCodeForm(f=>({...f,code:e.target.value.toUpperCase()}))}
+                      style={{ flex:1, padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, fontFamily:mono, outline:"none" }} placeholder="LAUNCH20" />
+                    <button onClick={() => {
+                      const chars="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+                      setNewCodeForm(f=>({...f,code:Array.from({length:8},()=>chars[Math.floor(Math.random()*chars.length)]).join("")}));
+                    }} style={{ padding:"7px 10px", background:"none", border:"1px solid "+BORDER, borderRadius:6, color:TEXT_MUTED, fontSize:11, cursor:"pointer" }}>⚡</button>
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5, textTransform:"uppercase", letterSpacing:"0.06em" }}>Type</div>
+                  <select value={newCodeForm.type} onChange={e => setNewCodeForm(f=>({...f,type:e.target.value}))}
+                    style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }}>
+                    <option>Discount</option><option>Trial</option><option>Referral</option><option>Presale</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:12 }}>
+                <div>
+                  <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5, textTransform:"uppercase", letterSpacing:"0.06em" }}>Applies to</div>
+                  <select value={newCodeForm.tier} onChange={e => setNewCodeForm(f=>({...f,tier:e.target.value}))}
+                    style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }}>
+                    <option>Any tier</option><option>Access</option><option>Core</option><option>Premium</option>
+                  </select>
+                </div>
+                <div>
+                  <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5, textTransform:"uppercase", letterSpacing:"0.06em" }}>Discount</div>
+                  <select value={newCodeForm.discountType} onChange={e => setNewCodeForm(f=>({...f,discountType:e.target.value}))}
+                    style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }}>
+                    <option>% off</option><option>$ off</option><option>Free trial</option><option>Free month</option>
+                  </select>
+                </div>
+                <div>
+                  <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5, textTransform:"uppercase", letterSpacing:"0.06em" }}>Value</div>
+                  <input value={newCodeForm.value} onChange={e => setNewCodeForm(f=>({...f,value:e.target.value}))}
+                    style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} placeholder="20" />
+                </div>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                <div>
+                  <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5, textTransform:"uppercase", letterSpacing:"0.06em" }}>Campaign</div>
+                  <input value={newCodeForm.campaign} onChange={e => setNewCodeForm(f=>({...f,campaign:e.target.value}))}
+                    style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} placeholder="Launch, Waitlist…" />
+                </div>
+                <div>
+                  <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:5, textTransform:"uppercase", letterSpacing:"0.06em" }}>Expires</div>
+                  <input value={newCodeForm.expires} onChange={e => setNewCodeForm(f=>({...f,expires:e.target.value}))} type="date"
+                    style={{ width:"100%", padding:"7px 10px", background:DARK_BG, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, outline:"none" }} />
+                </div>
+              </div>
             </div>
           )}
 
@@ -1193,9 +1274,10 @@ function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
                 style={{ padding:"9px 20px", background:"none", border:"1px solid "+BORDER, borderRadius:6, color:TEXT_SECONDARY, fontSize:13, cursor:"pointer" }}>
                 Cancel
               </button>
-              <button onClick={sendPromoToSelected} disabled={!promoPickCode || promoSending}
-                style={{ padding:"9px 20px", background: promoPickCode ? GOLD : BORDER, border:"none", borderRadius:6, color: promoPickCode ? DARK_BG : TEXT_MUTED, fontSize:13, fontWeight:600, cursor: promoPickCode ? "pointer" : "default" }}>
-                {promoSending ? "Sending…" : "Send to " + selectedIds.size + " contacts"}
+              <button onClick={sendPromoToSelected}
+                disabled={(promoModalMode === "existing" && !promoPickCode) || (promoModalMode === "create" && !newCodeForm.code) || promoSending}
+                style={{ padding:"9px 20px", background: ((promoModalMode==="existing" && promoPickCode)||(promoModalMode==="create" && newCodeForm.code)) ? GOLD : BORDER, border:"none", borderRadius:6, color: ((promoModalMode==="existing" && promoPickCode)||(promoModalMode==="create" && newCodeForm.code)) ? DARK_BG : TEXT_MUTED, fontSize:13, fontWeight:600, cursor:"pointer" }}>
+                {promoSending ? "Sending…" : promoModalMode === "create" ? "Create & Send to " + selectedIds.size : "Send to " + selectedIds.size}
               </button>
             </div>
           )}
@@ -1208,7 +1290,13 @@ function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
 
 // ─── Pipeline Tab ─────────────────────────────────────────────────────────────
 function PipelineTab() {
-  const apps = MOCK_SUBSCRIBERS.filter(s => s.source === "Application" && s.statusHistory);
+  const [activePerson, setActivePerson] = useState(null);
+  const [allApps, setAllApps] = useState(MOCK_SUBSCRIBERS.filter(s => s.source === "Application"));
+  function updatePerson(id, updates) {
+    setAllApps(prev => prev.map(s => s.id === id ? Object.assign({}, s, updates) : s));
+    if (activePerson && activePerson.id === id) setActivePerson(prev => Object.assign({}, prev, updates));
+  }
+  const apps = allApps.filter(s => s.statusHistory);
   const rows = apps.map(s => {
     const h = s.statusHistory || [];
     function days(from, to) {
@@ -1255,7 +1343,10 @@ function PipelineTab() {
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={r.id} style={{ borderBottom: i < rows.length - 1 ? "1px solid "+BORDER : "none" }}>
+              <tr key={r.id} onClick={() => setActivePerson(allApps.find(a => a.id === r.id))}
+                style={{ borderBottom: i < rows.length - 1 ? "1px solid "+BORDER : "none", cursor:"pointer" }}
+                onMouseEnter={e => e.currentTarget.style.background="rgba(201,169,110,0.04)"}
+                onMouseLeave={e => e.currentTarget.style.background="transparent"}>
                 <td style={{ padding:"10px 14px" }}>
                   <div style={{ fontSize:13, fontFamily:serif, color:TEXT_PRIMARY }}>{r.firstName} {r.lastName}</div>
                   <div style={{ fontSize:10, fontFamily:font, color:TEXT_MUTED, marginTop:1 }}>Applied {r.joined}</div>
@@ -1272,6 +1363,13 @@ function PipelineTab() {
         </table>
       </div>
       <div style={{ marginTop:"0.75rem", fontSize:11, color:TEXT_MUTED, fontFamily:font }}>* "d" = days from status change timestamps.</div>
+    {activePerson && (
+      <ApplicationModal
+        person={activePerson}
+        onClose={() => setActivePerson(null)}
+        onUpdate={(id, updates) => updatePerson(id, updates)}
+      />
+    )}
     </div>
   );
 }
