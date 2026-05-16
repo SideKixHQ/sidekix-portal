@@ -24,7 +24,6 @@
   <script type="text/babel">
 const { useState, useMemo, useRef, useEffect } = React;
 
-
 // ─── Brand tokens ─────────────────────────────────────────────────────────────
 const GOLD       = "#C9A96E";
 const GOLD_LIGHT = "#E2C99A";
@@ -860,7 +859,7 @@ function SidePanel({ person, onClose, onUpdate }) {
 
 
 // ─── Row Menu (three-dot) ─────────────────────────────────────────────────────
-function RowMenu({ archived, onArchive, onRestore, onDelete, onUnsubscribe, isUnsubscribed }) {
+function RowMenu({ archived, onArchive, onRestore, onDelete, onUnsubscribe, isUnsubscribed, extraActions }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -889,6 +888,14 @@ function RowMenu({ archived, onArchive, onRestore, onDelete, onUnsubscribe, isUn
                 Archive
               </div>
           }
+          {extraActions && extraActions.map((a, i) => (
+            <div key={i} onClick={e => { setOpen(false); a.onClick(e); }}
+              style={{ padding:"9px 14px", fontSize:12, fontFamily:font, color:TEXT_SECONDARY, cursor:"pointer", borderBottom:"1px solid "+BORDER }}
+              onMouseEnter={e => e.currentTarget.style.background=DARK_CARD2}
+              onMouseLeave={e => e.currentTarget.style.background="transparent"}>
+              {a.label}
+            </div>
+          ))}
           {onUnsubscribe && !isUnsubscribed && (
             <div onClick={e => { setOpen(false); onUnsubscribe(e); }}
               style={{ padding:"9px 14px", fontSize:12, fontFamily:font, color:"#E07070", cursor:"pointer", borderBottom:"1px solid "+BORDER }}
@@ -910,9 +917,13 @@ function RowMenu({ archived, onArchive, onRestore, onDelete, onUnsubscribe, isUn
 }
 
 // ─── Subscribers Tab ──────────────────────────────────────────────────────────
-function SubscribersTab({ currentUser }) {
+function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
   const [subs,         setSubs]         = useState(MOCK_SUBSCRIBERS);
   const [search,       setSearch]       = useState("");
+  const [showPromoModal, setShowPromoModal] = useState(false);
+  const [promoPickCode,  setPromoPickCode]  = useState("");
+  const [promoSending,   setPromoSending]   = useState(false);
+  const [promoSentMsg,   setPromoSentMsg]   = useState("");
   const [sourceFilter, setSourceFilter] = useState("All sources");
   const [statusFilter, setStatusFilter] = useState("All statuses");
   const [reviewFilter, setReviewFilter] = useState("All reviews");
@@ -939,6 +950,46 @@ function SubscribersTab({ currentUser }) {
   }
   function archiveSelected() {
     setSelectedIds(prev => { prev.forEach(id => archivePerson(id)); return new Set(); });
+  }
+  async function sendPromoToSelected() {
+    if (!promoPickCode) return;
+    setPromoSending(true);
+    const selectedSubs = subs.filter(s => selectedIds.has(s.id));
+    const today = new Date().toLocaleDateString("en-US", { month:"short", day:"numeric" });
+    for (const sub of selectedSubs) {
+      try {
+        await fetch(SERVER_URL + "/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-SideKix-Secret": SERVER_SECRET },
+          body: JSON.stringify({
+            to: sub.email,
+            from: "joinus@sidekixhq.com",
+            fromName: "SideKix",
+            subject: "Your exclusive SideKix promo code",
+            body: "Hi " + sub.firstName + ",\n\nHere is your exclusive SideKix promo code:\n\n" + promoPickCode + "\n\nUse it when you sign up at sidekixhq.com/join?code=" + promoPickCode + "\n\nTalk soon,\nThe SideKix Team\n\n---\nUnsubscribe: https://sidekix-email-server.onrender.com/unsubscribe?email=" + sub.email + "\nSideKix - Character Limit LLC - Wilmington, NC",
+          }),
+        });
+      } catch(e) { console.warn("Failed to send to", sub.email); }
+    }
+    // Track in promo code assigned list
+    if (setPromoCodes) {
+      setPromoCodes(prev => prev.map(c => {
+        if (c.code !== promoPickCode) return c;
+        const existingEmails = new Set(c.assigned.map(a => a.email));
+        const newAssigned = selectedSubs
+          .filter(sub => !existingEmails.has(sub.email))
+          .map(sub => ({ email: sub.email, name: sub.firstName + " " + sub.lastName, status:"sent", redeemedTier:"", date: today }));
+        return { ...c, assigned: [...c.assigned, ...newAssigned] };
+      }));
+    }
+    setPromoSending(false);
+    setPromoSentMsg("Sent to " + selectedSubs.length + " contacts!");
+    setTimeout(() => {
+      setShowPromoModal(false);
+      setPromoPickCode("");
+      setPromoSentMsg("");
+      setSelectedIds(new Set());
+    }, 2000);
   }
   function deletePerson(id) {
     setSubs(p => p.filter(s => s.id !== id));
@@ -1001,6 +1052,7 @@ function SubscribersTab({ currentUser }) {
   const th = { padding:"10px 14px", textAlign:"left", fontFamily:font, fontWeight:500, fontSize:10, letterSpacing:"0.1em", textTransform:"uppercase", color:TEXT_MUTED, borderBottom:"1px solid "+BORDER, whiteSpace:"nowrap" };
 
   return (
+    <>
     <div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(6,1fr)", gap:10, marginBottom:"1.5rem" }}>
         {stats.map(({ label, value, onClick }) => (
@@ -1105,6 +1157,52 @@ function SubscribersTab({ currentUser }) {
         {activePerson && activePerson.source !== "Application" && <SidePanel person={activePerson} onClose={() => setActivePerson(null)} onUpdate={updatePerson} />}
       </div>
     </div>
+    {/* Promo Code Send Modal */}
+    {showPromoModal && (
+      <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center" }} onClick={() => !promoSending && setShowPromoModal(false)}>
+        <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:12, padding:32, width:440, maxWidth:"90vw" }} onClick={e => e.stopPropagation()}>
+          <div style={{ fontFamily:serif, fontSize:20, fontWeight:300, color:GOLD, marginBottom:6 }}>Send Promo Code</div>
+          <div style={{ fontSize:13, color:TEXT_MUTED, marginBottom:24 }}>
+            Sending to <strong style={{ color:TEXT_PRIMARY }}>{selectedIds.size} subscriber{selectedIds.size !== 1 ? "s" : ""}</strong>. Each recipient will be tracked in the promo code detail view.
+          </div>
+
+          <div style={{ marginBottom:20 }}>
+            <div style={{ fontSize:11, color:TEXT_MUTED, marginBottom:8, textTransform:"uppercase", letterSpacing:"0.06em" }}>Select a code to send</div>
+            <select value={promoPickCode} onChange={e => setPromoPickCode(e.target.value)}
+              style={{ width:"100%", padding:"10px 12px", background:DARK_BG, border:"1px solid "+(promoPickCode ? GOLD : BORDER), borderRadius:6, color: promoPickCode ? TEXT_PRIMARY : TEXT_MUTED, fontSize:13, outline:"none" }}>
+              <option value="">Choose a promo code…</option>
+              {(promoCodes || INITIAL_CODES).filter(c => c.active).map(c => (
+                <option key={c.id} value={c.code}>{c.code} — {c.type} · {c.discountType === "% off" ? c.value+"%" : c.discountType === "$ off" ? "$"+c.value : c.value}{c.campaign ? " · "+c.campaign : ""}</option>
+              ))}
+            </select>
+          </div>
+
+          {promoPickCode && (
+            <div style={{ padding:"10px 14px", background:"rgba(201,169,110,0.08)", border:"1px solid rgba(201,169,110,0.2)", borderRadius:6, marginBottom:20, fontSize:12, color:GOLD }}>
+              Each contact will receive an email with code <strong>{promoPickCode}</strong> and a signup link. Redemptions will appear in the Promo Codes tab under this code.
+            </div>
+          )}
+
+          {promoSentMsg ? (
+            <div style={{ padding:"12px", background:"rgba(100,200,100,0.1)", border:"1px solid rgba(100,200,100,0.3)", borderRadius:6, color:"#7EC87E", fontSize:13, textAlign:"center" }}>
+              ✓ {promoSentMsg}
+            </div>
+          ) : (
+            <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
+              <button onClick={() => setShowPromoModal(false)} disabled={promoSending}
+                style={{ padding:"9px 20px", background:"none", border:"1px solid "+BORDER, borderRadius:6, color:TEXT_SECONDARY, fontSize:13, cursor:"pointer" }}>
+                Cancel
+              </button>
+              <button onClick={sendPromoToSelected} disabled={!promoPickCode || promoSending}
+                style={{ padding:"9px 20px", background: promoPickCode ? GOLD : BORDER, border:"none", borderRadius:6, color: promoPickCode ? DARK_BG : TEXT_MUTED, fontSize:13, fontWeight:600, cursor: promoPickCode ? "pointer" : "default" }}>
+                {promoSending ? "Sending…" : "Send to " + selectedIds.size + " contacts"}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -1244,7 +1342,10 @@ function SendLogTab() {
       </div>
       {selectedIds.size > 0 && (
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:"0.75rem", padding:"8px 12px", background:"rgba(201,169,110,0.08)", border:"1px solid rgba(201,169,110,0.2)", borderRadius:4, fontSize:12, color:GOLD_LIGHT, fontFamily:font }}>
-          <span>{selectedIds.size} selected</span>
+          <span style={{ fontWeight:600 }}>{selectedIds.size} selected</span>
+          <button onClick={() => archiveSelected()} style={{ padding:"4px 12px", background:"none", border:"1px solid "+BORDER, borderRadius:4, color:TEXT_SECONDARY, fontSize:11, cursor:"pointer", fontFamily:font }}>Archive</button>
+          <button onClick={() => deleteSelected()} style={{ padding:"4px 12px", background:"none", border:"1px solid rgba(220,100,100,0.3)", borderRadius:4, color:"#E07070", fontSize:11, cursor:"pointer", fontFamily:font }}>Delete</button>
+          <button onClick={() => setShowPromoModal(true)} style={{ padding:"4px 12px", background:GOLD, border:"none", borderRadius:4, color:DARK_BG, fontSize:11, cursor:"pointer", fontFamily:font, fontWeight:600 }}>⚡ Send Promo Code</button>
           <button onClick={() => setSelectedIds(new Set())} style={{ marginLeft:"auto", background:"none", border:"none", color:TEXT_MUTED, cursor:"pointer", fontSize:11, fontFamily:font }}>Clear</button>
         </div>
       )}
@@ -1360,6 +1461,7 @@ function SettingsTab() {
 function Dashboard({ currentUser, onSignOut }) {
   const [tab,     setTab]    = useState("templates");
   const [logoUrl] = useState("");
+  const [promoCodes, setPromoCodes] = useState(INITIAL_CODES);
   const TABS = [
     { id:"templates",   label:"Templates"   },
     { id:"subscribers", label:"Subscribers" },
@@ -1389,10 +1491,10 @@ function Dashboard({ currentUser, onSignOut }) {
         ))}
       </div>
       {tab === "templates"   && <TemplatesTab logoUrl={logoUrl} />}
-      {tab === "subscribers" && <SubscribersTab currentUser={currentUser} />}
+      {tab === "subscribers" && <SubscribersTab currentUser={currentUser} promoCodes={promoCodes} setPromoCodes={setPromoCodes} />}
       {tab === "pipeline"    && <PipelineTab />}
       {tab === "sendlog"     && <SendLogTab />}
-      {tab === "promocodes"  && <PromoCodesTab />}
+      {tab === "promocodes"  && <PromoCodesTab codes={promoCodes} setCodes={setPromoCodes} />}
     {tab === "settings"    && <SettingsTab />}
     </div>
   );
@@ -1608,8 +1710,7 @@ function PromoCodeDetail({ code, onBack, onUpdate }) {
   );
 }
 
-function PromoCodesTab() {
-  const [codes, setCodes]         = useState(INITIAL_CODES);
+function PromoCodesTab({ codes, setCodes }) {
   const [search, setSearch]       = useState("");
   const [filter, setFilter]       = useState("All");
   const [selectedCode, setSelectedCode] = useState(null);
@@ -1736,7 +1837,7 @@ function PromoCodesTab() {
         <table style={{ width:"100%", borderCollapse:"collapse", tableLayout:"fixed" }}>
           <thead>
             <tr style={{ borderBottom:"1px solid "+BORDER }}>
-              {[["Code","18%"],["Type","9%"],["Unlocks","8%"],["Value","8%"],["Uses","11%"],["Link","14%"],["Expires","9%"],["Campaign","8%"],["Status","8%"],["","7%"]].map(([h,w]) => (
+              {[["Code","17%"],["Type","9%"],["Unlocks","8%"],["Value","8%"],["Uses","11%"],["Link","14%"],["Expires","9%"],["Campaign","8%"],["Status","8%"],["","8%"]].map(([h,w]) => (
                 <th key={h} style={{ padding:"10px 12px", textAlign:"left", fontSize:10, fontWeight:600, color:TEXT_MUTED, letterSpacing:"0.06em", textTransform:"uppercase", width:w, overflow:"hidden" }}>{h}</th>
               ))}
             </tr>
@@ -1778,10 +1879,14 @@ function PromoCodesTab() {
                     </button>
                   </td>
                   <td style={{ padding:"11px 12px" }}>
-                    <div style={{ display:"flex", gap:4 }}>
-                      <button onClick={e => openEdit(c,e)} style={{ background:"none", border:"1px solid "+BORDER, borderRadius:4, padding:"3px 8px", fontSize:10, color:TEXT_SECONDARY, cursor:"pointer" }}>Edit</button>
-                      <button onClick={e => deleteCode(c.id,e)} style={{ background:"none", border:"1px solid rgba(220,100,100,0.3)", borderRadius:4, padding:"3px 8px", fontSize:10, color:"#E07070", cursor:"pointer" }}>Del</button>
-                    </div>
+                    <RowMenu
+                      archived={false}
+                      onArchive={() => {}}
+                      onRestore={() => {}}
+                      onDelete={e => deleteCode(c.id, e)}
+                      onUnsubscribe={null}
+                      extraActions={[{ label:"Edit", onClick: e => openEdit(c, e) }]}
+                    />
                   </td>
                 </tr>
               );
