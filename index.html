@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SideKix Team Portal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; padding: 0; background: #1C1A14; font-family: 'DM Sans', system-ui, sans-serif; }
+    #root { min-height: 100vh; }
+    select option { background: #242017; color: #F0EAD6; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #1C1A14; }
+    ::-webkit-scrollbar-thumb { background: #3A3528; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #6B6454; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- React + Babel from CDN -->
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+
+  <script type="text/babel">
+const { useState, useMemo, useRef, useEffect } = React;
+
+
+// ─── Brand tokens ─────────────────────────────────────────────────────────────
+const GOLD       = "#C9A96E";
+const GOLD_LIGHT = "#E2C99A";
+const DARK_BG    = "#1C1A14";
+const DARK_CARD  = "#242017";
+const DARK_CARD2 = "#2C2820";
+const BORDER     = "#3A3528";
+const TEXT_PRIMARY   = "#F0EAD6";
+const TEXT_SECONDARY = "#9A9078";
+const TEXT_MUTED     = "#6B6454";
+const font  = "'DM Sans', system-ui, sans-serif";
+const serif = "'Cormorant Garamond', serif";
+const mono  = "'DM Mono', monospace";
+
+const ACCESS_PASSWORD = "sidekix2026";
+const ALLOWED_DOMAIN  = "sidekixhq.com";
+const SERVER_URL      = "https://sidekix-email-server.onrender.com";
+const SERVER_SECRET   = "sidekix2026";
+
+// ─── Color maps ───────────────────────────────────────────────────────────────
+const SOURCE_COLORS = {
+  Subscriber:   { bg: "rgba(201,169,110,0.12)", color: "#C9A96E", border: "rgba(201,169,110,0.3)" },
+  Application:  { bg: "rgba(100,160,220,0.12)", color: "#7EB8E8", border: "rgba(100,160,220,0.3)" },
+  Contact:      { bg: "rgba(140,200,140,0.12)", color: "#8EC88E", border: "rgba(140,200,140,0.3)" },
+};
+const STATUS_COLORS = {
+  Active:       { bg: "rgba(100,200,100,0.1)",  color: "#7EC87E", border: "rgba(100,200,100,0.25)" },
+  Unsubscribed: { bg: "rgba(220,100,100,0.1)",  color: "#E07070", border: "rgba(220,100,100,0.25)" },
+  Bounced:      { bg: "rgba(180,120,60,0.12)",  color: "#C8986E", border: "rgba(180,120,60,0.3)"   },
+};
+const REVIEW_COLORS = {
+  "Pending":      { bg: "rgba(201,169,110,0.12)", color: "#C9A96E", border: "rgba(201,169,110,0.3)" },
+  "Under Review": { bg: "rgba(160,120,220,0.12)", color: "#B89AE8", border: "rgba(160,120,220,0.3)" },
+  "Interview":    { bg: "rgba(80,160,220,0.12)",  color: "#6AB4E8", border: "rgba(80,160,220,0.3)"  },
+  "Approved":     { bg: "rgba(100,200,100,0.1)",  color: "#7EC87E", border: "rgba(100,200,100,0.25)"},
+  "Rejected":     { bg: "rgba(220,100,100,0.1)",  color: "#E07070", border: "rgba(220,100,100,0.25)"},
+  "On Hold":      { bg: "rgba(180,120,60,0.12)",  color: "#C8986E", border: "rgba(180,120,60,0.3)"  },
+};
+
+// ─── Email copy (plain strings only — no template literals with interpolation) ─
+const UNSUB_ADVISOR = "\n\n---\nTo unsubscribe from SideKix Advisor emails:\nhttps://sidekixhq.com/unsubscribe?email={{email}}\n\nSideKix · Character Limit LLC · Wilmington, NC · Advisors@sidekixhq.com";
+const UNSUB_MEMBER  = "\n\n---\nTo unsubscribe:\nhttps://sidekixhq.com/unsubscribe?email={{email}}\n\nSideKix · Character Limit LLC · Wilmington, NC · joinus@sidekixhq.com";
+
+const DEFAULT_INTERVIEW_SUBJECT = "You're moving forward — interview invitation from SideKix";
+const DEFAULT_INTERVIEW_BODY    = "Hi {{first_name}},\n\nWe've reviewed your application and we'd love to move forward with a conversation.\n\nYour background in {{expertise}} stood out to us, and we think you could be a great fit for the SideKix advisor community.\n\nHere's what happens next:\n- We'll send you a calendar link to book a 30-minute intro call\n- The call is casual — just a chance to get to know each other\n- We'll walk you through the platform and answer your questions\n\nBook your interview here: https://sidekixhq.com/book-interview\n\nLooking forward to speaking with you,\nJames\nFounder, SideKix" + UNSUB_ADVISOR;
+
+const DEFAULT_REJECTION_SUBJECT = "Your SideKix Advisor Application";
+const DEFAULT_REJECTION_BODY    = "Hi {{first_name}},\n\nThank you for taking the time to apply to become a SideKix Advisor. We genuinely appreciate your interest and the thought you put into your application.\n\nAfter careful review, we've decided not to move forward at this time. This wasn't an easy decision — the quality of applications we're receiving is high.\n\nA few things we want you to know:\n- This decision is not a reflection of your experience or capabilities\n- We're growing quickly and our needs will evolve\n- You're welcome to reapply in 6 months if your situation has changed\n\nWarm regards,\nJames\nFounder, SideKix" + UNSUB_ADVISOR;
+
+// ─── Email templates ──────────────────────────────────────────────────────────
+const INITIAL_TEMPLATES = {
+  application: {
+    id: "application", label: "Application Received", routedTo: "Advisors@sidekixhq.com",
+    trigger: "User submits advisor application",
+    subject: "We received your SideKix application, {{first_name}}!",
+    body: "Hi {{first_name}},\n\nThanks for applying to become a SideKix Advisor! We're excited to review your application.\n\nHere's what happens next:\n- Our team will review your application within 2-3 business days\n- You'll receive an email with next steps\n- In the meantime, feel free to explore sidekixhq.com\n\nTalk soon,\nThe SideKix Team" + UNSUB_ADVISOR,
+    active: true,
+  },
+  subscriber: {
+    id: "subscriber", label: "Subscriber Welcome", routedTo: "joinus@sidekixhq.com",
+    trigger: "User opts in / subscribes",
+    subject: "Welcome to SideKix, {{first_name}}",
+    body: "Hi {{first_name}},\n\nWelcome to SideKix! You're now on our list.\n\nWhat you can expect:\n- Insider tips on getting the most out of the platform\n- Early access to new features and advisors\n- Exclusive member-only content\n\nReady to get started? Visit sidekixhq.com/dashboard.\n\nTalk soon,\nThe SideKix Team" + UNSUB_MEMBER,
+    active: true,
+  },
+  contact: {
+    id: "contact", label: "Contact Form", routedTo: "joinus@sidekixhq.com",
+    trigger: "User submits a contact form",
+    subject: "Got your message — we'll be in touch soon",
+    body: "Hi {{first_name}},\n\nThanks for reaching out! We'll get back to you within 1 business day.\n\nTalk soon,\nThe SideKix Team" + UNSUB_MEMBER,
+    active: true,
+  },
+  nurture3: {
+    id: "nurture3", label: "Follow-up · Day 3", routedTo: "joinus@sidekixhq.com",
+    trigger: "3 days after sign-up (no activity)",
+    subject: "Still thinking it over, {{first_name}}?",
+    body: "Hi {{first_name}},\n\nWe noticed you haven't had a chance to explore SideKix yet — totally understandable.\n\nWhen you're ready:\n- Browse top-rated advisors\n- Book a free 15-minute intro session\n\nTalk soon,\nThe SideKix Team" + UNSUB_MEMBER,
+    active: false,
+  },
+  nurture7: {
+    id: "nurture7", label: "Follow-up · Day 7", routedTo: "joinus@sidekixhq.com",
+    trigger: "7 days after sign-up (no activity)",
+    subject: "Here's what SideKix members are saying, {{first_name}}",
+    body: "Hi {{first_name}},\n\nA week ago you showed interest in SideKix. Members report getting more clarity in a single session than months of going it alone.\n\nWhen you're ready: sidekixhq.com\n\nJames\nFounder, SideKix" + UNSUB_MEMBER,
+    active: false,
+  },
+  nurture14: {
+    id: "nurture14", label: "Follow-up · Day 14", routedTo: "joinus@sidekixhq.com",
+    trigger: "14 days after sign-up (no activity)",
+    subject: "Last one from us, {{first_name}} — we mean it",
+    body: "Hi {{first_name}},\n\nThis is the last email we'll send for now.\n\nThe people who get the most out of SideKix are the ones who decided to stop going it alone. If that ever sounds like you, we'll be at sidekixhq.com.\n\nWishing you the best,\nJames\nFounder, SideKix\n\nP.S. We don't delete accounts — come back anytime." + UNSUB_MEMBER,
+    active: false,
+  },
+};
+
+// ─── Mock data ────────────────────────────────────────────────────────────────
+const MOCK_SEND_LOG = [
+  { id:1,  firstName:"Sarah",  lastName:"Mitchell", to:"sarah@example.com",  template:"Subscriber Welcome",   routedTo:"joinus@sidekixhq.com",   status:"delivered", opened:true,  clicked:true,  time:"2 min ago",  unsubscribed:false, logType:"subscriber" },
+  { id:2,  firstName:"Mike",   lastName:"Acevedo",  to:"mike@acme.co",       template:"Application Received", routedTo:"Advisors@sidekixhq.com",  status:"delivered", opened:true,  clicked:false, time:"14 min ago", unsubscribed:false, logType:"advisor"    },
+  { id:3,  firstName:"Jen",    lastName:"Torres",   to:"jen@startup.io",     template:"Contact Form",          routedTo:"joinus@sidekixhq.com",   status:"delivered", opened:false, clicked:false, time:"1 hr ago",   unsubscribed:false, logType:"subscriber" },
+  { id:4,  firstName:"Carlos", lastName:"Reyes",    to:"carlos@example.com", template:"Subscriber Welcome",   routedTo:"joinus@sidekixhq.com",   status:"bounced",   opened:false, clicked:false, time:"3 hr ago",   unsubscribed:false, logType:"subscriber" },
+  { id:5,  firstName:"Priya",  lastName:"Sharma",   to:"priya@techco.com",   template:"Follow-up Day 3",      routedTo:"joinus@sidekixhq.com",   status:"delivered", opened:true,  clicked:true,  time:"5 hr ago",   unsubscribed:true,  logType:"subscriber" },
+  { id:6,  firstName:"Dan",    lastName:"Kovacs",   to:"dan@venture.co",     template:"Interview Invite",      routedTo:"Advisors@sidekixhq.com",  status:"delivered", opened:true,  clicked:false, time:"7 hr ago",   unsubscribed:false, logType:"advisor"    },
+  { id:7,  firstName:"Nina",   lastName:"Okafor",   to:"nina@agency.com",    template:"Contact Form",          routedTo:"joinus@sidekixhq.com",   status:"delivered", opened:true,  clicked:false, time:"9 hr ago",   unsubscribed:false, logType:"subscriber" },
+  { id:8,  firstName:"Leo",    lastName:"Park",     to:"leo@designco.com",   template:"Subscriber Welcome",   routedTo:"joinus@sidekixhq.com",   status:"delivered", opened:true,  clicked:true,  time:"11 hr ago",  unsubscribed:false, logType:"subscriber" },
+  { id:9,  firstName:"Amara",  lastName:"Diallo",   to:"amara@consult.io",   template:"Application Received", routedTo:"Advisors@sidekixhq.com",  status:"delivered", opened:false, clicked:false, time:"1 day ago",  unsubscribed:false, logType:"advisor"    },
+  { id:10, firstName:"Marcus", lastName:"Ellis",    to:"marcus@fundco.io",   template:"Rejection Email",       routedTo:"Advisors@sidekixhq.com",  status:"delivered", opened:true,  clicked:false, time:"2 days ago", unsubscribed:false, logType:"advisor"    },
+];
+
+const MOCK_SUBSCRIBERS = [
+  { id:1,  firstName:"Sarah",  lastName:"Mitchell", email:"sarah@example.com",  source:"Subscriber",  status:"Active",       joined:"May 14, 2026", tags:["Newsletter"],        notes:"", application:null },
+  { id:2,  firstName:"Mike",   lastName:"Acevedo",  email:"mike@acme.co",       source:"Application", status:"Active",       joined:"May 14, 2026", tags:["Advisor Applicant"], notes:"Strong finance background",
+    reviewStatus:"Pending", assignedTo:[], statusHistory:[{ status:"Pending", date:"2026-05-14" }],
+    application:{ city:"Austin, TX", zip:"78701", phone:"512-555-0192", website:"https://mikeacevedo.com", socialHandles:"https://instagram.com/mikeacevedo",
+      background:["Founder (built or exited a business)","Corporate Leader (Director / VP / Manager)"], yearsOwner:"7-15 years", businessTypes:["Technology / SaaS","Service-based"], priorAdvisor:"Yes",
+      expertise:["Finance & Budgeting","Funding & Investment","Business Planning","Operations & Scaling"], strengths:["Business Model Design","Goal Setting","Prioritization","Leadership Mindset"],
+      linkedin:"https://linkedin.com/in/mikeacevedo", languages:["English","Spanish"],
+      resume:"https://sidekixhq.com/uploads/mike_acevedo_resume.pdf", resumeName:"mike_acevedo_resume.pdf",
+      challenge:"I scaled a SaaS company from $0 to $4M ARR in 3 years before a strategic acquisition. The biggest challenge was building a team during hypergrowth.",
+      whyAdvisor:"I want to be the advisor I wish I had when I was building." }},
+  { id:3,  firstName:"Jen",    lastName:"Torres",   email:"jen@startup.io",     source:"Contact",     status:"Active",       joined:"May 13, 2026", tags:["General Inquiry"],   notes:"", application:null },
+  { id:4,  firstName:"Carlos", lastName:"Reyes",    email:"carlos@example.com", source:"Subscriber",  status:"Bounced",      joined:"May 12, 2026", tags:["Newsletter"],        notes:"Hard bounce — bad address", application:null },
+  { id:5,  firstName:"Priya",  lastName:"Sharma",   email:"priya@techco.com",   source:"Subscriber",  status:"Unsubscribed",  joined:"May 11, 2026", tags:["Newsletter"],        notes:"", application:null },
+  { id:6,  firstName:"Dan",    lastName:"Kovacs",   email:"dan@venture.co",     source:"Application", status:"Active",       joined:"May 10, 2026", tags:["Advisor Applicant"], notes:"",
+    reviewStatus:"Approved", assignedTo:["james@sidekixhq.com"],
+    statusHistory:[{ status:"Pending", date:"2026-05-10" },{ status:"Under Review", date:"2026-05-11" },{ status:"Interview", date:"2026-05-13" },{ status:"Approved", date:"2026-05-14" }],
+    application:{ city:"Chicago, IL", zip:"60601", phone:"312-555-0177", website:"https://dankovacs.co", socialHandles:"https://twitter.com/dankovacs_biz",
+      background:["Fractional Leader (COO/CMO/CFO/etc.)","Coach or Consultant"], yearsOwner:"15+ years", businessTypes:["Service-based","Real Estate"], priorAdvisor:"Yes",
+      expertise:["Operations & Scaling","Team & Leadership Development","HR & Recruitment","Branding & Positioning"], strengths:["Networking & Relationship Building","Emotional Intelligence","Adaptability","Listening"],
+      linkedin:"https://linkedin.com/in/dankovacs", languages:["English"],
+      resume:"https://sidekixhq.com/uploads/dan_kovacs_cv.pdf", resumeName:"dan_kovacs_cv.pdf",
+      challenge:"Rebuilt a 40-person operations team after a major client loss wiped out 60% of revenue. We had 90 days of runway.",
+      whyAdvisor:"Business owners in a crisis often just need one experienced person to talk to. I want to be that person." }},
+  { id:7,  firstName:"Nina",   lastName:"Okafor",   email:"nina@agency.com",    source:"Contact",     status:"Active",       joined:"May 9, 2026",  tags:["Partnership Inquiry"],notes:"", application:null },
+  { id:8,  firstName:"Leo",    lastName:"Park",     email:"leo@designco.com",   source:"Subscriber",  status:"Active",       joined:"May 8, 2026",  tags:["Newsletter","Beta"],  notes:"Requested early access", application:null },
+  { id:9,  firstName:"Amara",  lastName:"Diallo",   email:"amara@consult.io",   source:"Application", status:"Active",       joined:"May 7, 2026",  tags:["Advisor Applicant"], notes:"",
+    reviewStatus:"On Hold", assignedTo:[],
+    statusHistory:[{ status:"Pending", date:"2026-05-07" },{ status:"Under Review", date:"2026-05-09" },{ status:"On Hold", date:"2026-05-12" }],
+    application:{ city:"Atlanta, GA", zip:"30301", phone:"404-555-0134", website:"", socialHandles:"https://instagram.com/amaradiallo",
+      background:["University Mentor / Ecosystem Advisor or Leader","Small Business Owner"], yearsOwner:"3-7 years", businessTypes:["Creative / Media","Service-based"], priorAdvisor:"Yes",
+      expertise:["Marketing & Sales","Branding & Positioning","Customer Acquisition","Customer Experience & Retention"], strengths:["Visionary Thinking & Purpose","Creative Problem Solving","Self-Awareness","Resilience"],
+      linkedin:"https://linkedin.com/in/amaradiallo", languages:["English","French"], resume:"", resumeName:"",
+      challenge:"Launched a creative agency during COVID with no clients and no network in a new city. I cold-pitched 200 businesses in 60 days.",
+      whyAdvisor:"SideKix has the potential to change who gets access to real business knowledge." }},
+  { id:10, firstName:"Tom",    lastName:"Walsh",    email:"tom@media.co",       source:"Contact",     status:"Bounced",      joined:"May 6, 2026",  tags:["General Inquiry"],   notes:"", application:null },
+  { id:11, firstName:"Zara",   lastName:"Collins",  email:"zara@brandco.com",   source:"Subscriber",  status:"Active",       joined:"May 5, 2026",  tags:["Newsletter"],        notes:"", application:null },
+  { id:12, firstName:"Marcus", lastName:"Ellis",    email:"marcus@fundco.io",   source:"Application", status:"Active",       joined:"May 4, 2026",  tags:["Advisor Applicant"], notes:"Follow up re: onboarding",
+    reviewStatus:"Approved", assignedTo:["james@sidekixhq.com","sarah@sidekixhq.com"],
+    statusHistory:[{ status:"Pending", date:"2026-05-04" },{ status:"Under Review", date:"2026-05-05" },{ status:"Interview", date:"2026-05-06" },{ status:"Approved", date:"2026-05-08" }],
+    application:{ city:"New York, NY", zip:"10001", phone:"212-555-0188", website:"https://marcusellis.io", socialHandles:"https://twitter.com/marcusellis",
+      background:["Founder (built or exited a business)","Coach or Consultant"], yearsOwner:"15+ years", businessTypes:["Technology / SaaS","Product-based","Service-based"], priorAdvisor:"Yes",
+      expertise:["Funding & Investment","Finance & Budgeting","Product Development","Operations & Scaling"], strengths:["Business Model Design","Customer Discovery","Lean Thinking","Prioritization"],
+      linkedin:"https://linkedin.com/in/marcusellis", languages:["English"],
+      resume:"https://sidekixhq.com/uploads/marcus_ellis_resume.pdf", resumeName:"marcus_ellis_resume.pdf",
+      challenge:"Raised a $2.5M seed round during a down market when every investor said no for 9 months. I rewrote the deck 11 times.",
+      whyAdvisor:"Fundraising is one of the most opaque parts of building a company. I want to change that." }},
+];
+
+const TEMPLATE_ORDER = ["application","subscriber","contact","nurture3","nurture7","nurture14"];
+const ALL_SOURCES    = ["All sources","Subscriber","Application","Contact"];
+const ALL_STATUSES   = ["All statuses","Active","Unsubscribed","Bounced"];
+const ALL_REVIEW     = ["All reviews","Pending","Under Review","Interview","Approved","Rejected","On Hold"];
+const ALL_SORT       = ["Newest first","Oldest first","Name A-Z","Name Z-A"];
+const LOG_TYPES      = ["All emails","Subscriber emails","Advisor emails"];
+const LOG_STATUSES   = ["All statuses","Delivered","Bounced","Unsubscribed"];
+const VARS           = ["{{first_name}}","{{last_name}}","{{email}}","{{expertise}}"];
+
+// ─── Style helpers ────────────────────────────────────────────────────────────
+const lbl = { fontSize:11, fontWeight:500, color:TEXT_MUTED, letterSpacing:"0.1em", textTransform:"uppercase", display:"block", marginBottom:6, fontFamily:font };
+function inp(extra) { return Object.assign({ width:"100%", padding:"9px 12px", fontSize:13, borderRadius:4, border:"1px solid "+BORDER, background:DARK_CARD2, color:TEXT_PRIMARY, fontFamily:font, boxSizing:"border-box", outline:"none" }, extra); }
+
+// ─── Atoms ────────────────────────────────────────────────────────────────────
+function Tag({ label, style }) {
+  return <span style={Object.assign({ fontSize:10, padding:"2px 8px", borderRadius:3, fontFamily:font, fontWeight:500, letterSpacing:"0.05em", whiteSpace:"nowrap" }, style)}>{label}</span>;
+}
+function SourceTag({ source }) {
+  const c = SOURCE_COLORS[source] || SOURCE_COLORS.Contact;
+  return <Tag label={source} style={{ background:c.bg, color:c.color, border:"1px solid "+c.border }} />;
+}
+function StatusTag({ status }) {
+  const c = STATUS_COLORS[status] || STATUS_COLORS.Active;
+  return <Tag label={status} style={{ background:c.bg, color:c.color, border:"1px solid "+c.border }} />;
+}
+function ReviewTag({ status }) {
+  const c = REVIEW_COLORS[status] || REVIEW_COLORS["Pending"];
+  return <Tag label={status} style={{ background:c.bg, color:c.color, border:"1px solid "+c.border }} />;
+}
+function Avatar({ first, last, size }) {
+  const sz = size || 34;
+  return (
+    <div style={{ width:sz, height:sz, borderRadius:"50%", background:DARK_CARD2, border:"1px solid "+BORDER, display:"flex", alignItems:"center", justifyContent:"center", fontSize:sz*0.32, fontWeight:600, fontFamily:font, color:GOLD_LIGHT, flexShrink:0 }}>
+      {first[0]}{last[0]}
+    </div>
+  );
+}
+function Accordion({ title, children }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div style={{ marginBottom:"1rem", borderRadius:4, border:"1px solid "+BORDER, overflow:"hidden" }}>
+      <button onClick={() => setOpen(o => !o)} style={{ width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 12px", background:DARK_CARD2, border:"none", cursor:"pointer" }}>
+        <span style={{ fontSize:10, fontWeight:500, letterSpacing:"0.1em", textTransform:"uppercase", color:TEXT_MUTED, fontFamily:font }}>{title}</span>
+        <span style={{ fontSize:11, color:TEXT_MUTED, transform:open ? "rotate(180deg)" : "none", transition:"transform 0.2s" }}>▾</span>
+      </button>
+      {open && <div style={{ padding:"10px 12px", background:DARK_CARD }}>{children}</div>}
+    </div>
+  );
+}
+function Chips({ items }) {
+  if (!items || !items.length) return <span style={{ fontSize:12, color:TEXT_MUTED, fontFamily:font }}>—</span>;
+  return (
+    <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
+      {items.map((item, i) => <span key={i} style={{ fontSize:11, padding:"3px 8px", borderRadius:3, background:DARK_CARD2, border:"1px solid "+BORDER, color:TEXT_SECONDARY, fontFamily:font }}>{item}</span>)}
+    </div>
+  );
+}
+function InfoField({ label, value, displayValue }) {
+  const show  = displayValue || value;
+  const isTel = value && value.startsWith("tel:");
+  const isLnk = value && (value.startsWith("http") || value.startsWith("www."));
+  const href  = isTel ? value : (value && !value.startsWith("http") ? "https://"+value : value);
+  const disp  = isTel ? (displayValue || value.replace("tel:","")) : (displayValue || (value||"").replace(/https?:\/\//,""));
+  return (
+    <div style={{ marginBottom:"0.6rem" }}>
+      <div style={{ fontSize:10, fontWeight:500, color:TEXT_MUTED, letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:font, marginBottom:3 }}>{label}</div>
+      {(isTel || isLnk) && show
+        ? <a href={href} target={isTel ? "_self" : "_blank"} rel="noopener noreferrer" style={{ fontSize:12, color:GOLD, fontFamily:font, lineHeight:1.6, textDecoration:"underline", wordBreak:"break-all" }}>{disp}{!isTel && " ↗"}</a>
+        : <div style={{ fontSize:12, color:show ? TEXT_SECONDARY : TEXT_MUTED, fontFamily:font, lineHeight:1.6 }}>{show || "—"}</div>
+      }
+    </div>
+  );
+}
+
+// ─── Login Gate ───────────────────────────────────────────────────────────────
+function LoginGate({ onAccess }) {
+  const [email, setEmail] = useState("");
+  const [pass,  setPass]  = useState("");
+  const [error, setError] = useState("");
+  const [busy,  setBusy]  = useState(false);
+
+  function attempt() {
+    setError(""); setBusy(true);
+    setTimeout(() => {
+      const domain = email.trim().split("@")[1] || "";
+      if (domain !== ALLOWED_DOMAIN) { setError("Access requires a @sidekixhq.com email."); setBusy(false); return; }
+      if (pass !== ACCESS_PASSWORD)  { setError("Incorrect password."); setBusy(false); return; }
+      onAccess(email.trim());
+    }, 500);
+  }
+
+  return (
+    <div style={{ background:DARK_BG, minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", padding:"2rem" }}>
+      <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+      <div style={{ width:"100%", maxWidth:380 }}>
+        <div style={{ textAlign:"center", marginBottom:"2.5rem" }}>
+          <div style={{ fontFamily:serif, fontSize:28, letterSpacing:"0.12em", color:TEXT_PRIMARY, marginBottom:6 }}>SideKix<span style={{ color:GOLD }}>·</span></div>
+          <div style={{ fontFamily:font, fontSize:11, color:TEXT_MUTED, letterSpacing:"0.1em", textTransform:"uppercase" }}>Team Portal</div>
+        </div>
+        <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:8, padding:"1.75rem" }}>
+          <div style={{ fontSize:15, fontFamily:serif, color:TEXT_PRIMARY, marginBottom:"1.25rem", textAlign:"center" }}>Sign in to continue</div>
+          <label style={lbl}>SideKix Email</label>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && attempt()} placeholder="you@sidekixhq.com" style={inp({ marginBottom:10 })} />
+          <label style={lbl}>Password</label>
+          <input type="password" value={pass} onChange={e => setPass(e.target.value)} onKeyDown={e => e.key === "Enter" && attempt()} placeholder="••••••••" style={inp({ marginBottom: error ? 8 : 16 })} />
+          {error && <div style={{ fontSize:12, color:"#E07070", fontFamily:font, marginBottom:12 }}>{error}</div>}
+          <button onClick={attempt} disabled={busy} style={{ width:"100%", padding:11, fontSize:12, fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase", borderRadius:5, border:"none", background:busy ? BORDER : GOLD, color:"#1C1A14", cursor:busy ? "default" : "pointer", fontFamily:font }}>
+            {busy ? "Checking…" : "Sign In"}
+          </button>
+        </div>
+        <div style={{ textAlign:"center", marginTop:"1.25rem", fontSize:11, color:TEXT_MUTED, fontFamily:font }}>Access restricted to @sidekixhq.com</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Template Card ────────────────────────────────────────────────────────────
+function TemplateCard({ def, logoUrl }) {
+  const [subject,   setSubject]   = useState(def.subject);
+  const [body,      setBody]      = useState(def.body);
+  const [active,    setActive]    = useState(def.active);
+  const [editing,   setEditing]   = useState(false);
+  const [draftSubj, setDraftSubj] = useState("");
+  const [draftBody, setDraftBody] = useState("");
+  const [testEmail, setTestEmail] = useState("");
+  const [testMsg,   setTestMsg]   = useState(null);
+  const [sending,   setSending]   = useState(false);
+  const [htmlMode,  setHtmlMode]  = useState(false);
+  const taRef = useRef(null);
+
+  function startEdit()  { setDraftSubj(subject); setDraftBody(body); setEditing(true); }
+  function cancelEdit() { setEditing(false); }
+  function saveEdit()   { setSubject(draftSubj); setBody(draftBody); setEditing(false); }
+  function insertVar(v) {
+    const el = taRef.current;
+    if (!el) { setDraftBody(b => b + " " + v); return; }
+    const s = el.selectionStart;
+    setDraftBody(draftBody.slice(0, s) + v + draftBody.slice(el.selectionEnd));
+    setTimeout(() => { el.focus(); el.setSelectionRange(s + v.length, s + v.length); }, 0);
+  }
+  async function sendTest() {
+    if (!testEmail) { setTestMsg({ ok:false, msg:"Enter a test email address." }); return; }
+    setSending(true); setTestMsg(null);
+    try {
+      const res  = await fetch(SERVER_URL + "/send-email", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json", "X-SideKix-Secret": SERVER_SECRET },
+        body:    JSON.stringify({ to: testEmail, from: def.routedTo, fromName: "SideKix", replyTo: def.routedTo, subject, body }),
+      });
+      const data = await res.json();
+      setTestMsg({ ok: data.success, msg: data.success ? "Test sent to " + testEmail : "Send failed - " + (data.message || "check sender verification in SendGrid") });
+    } catch (err) {
+      setTestMsg({ ok: false, msg: "Could not reach email server. Try again in 30 seconds (server may be waking up)." });
+    }
+    setSending(false);
+  }
+  function buildHtml(text) {
+    const logo = logoUrl || "https://sidekixhq.com/wp-content/uploads/sidekix-logo.png";
+    return '<div style="font-family:Georgia,serif;max-width:560px;margin:0 auto;background:#1C1A14;border-radius:8px;overflow:hidden;">'
+      + '<div style="padding:20px 32px;text-align:center;border-bottom:1px solid #3A3528;">'
+      + '<img src="' + logo + '" alt="SideKix" style="height:44px;" /></div>'
+      + '<div style="padding:28px 32px;color:#F0EAD6;line-height:1.9;font-size:15px;white-space:pre-wrap;">' + text + '</div>'
+      + '<div style="padding:16px 32px;border-top:1px solid #3A3528;text-align:center;">'
+      + '<a href="https://sidekixhq.com/unsubscribe?email={{email}}" style="color:#C9A96E;font-weight:600;text-decoration:underline;font-size:14px;">Unsubscribe</a>'
+      + '<span style="color:#6B6454;font-size:12px;margin-left:8px;">· one click, no questions asked</span></div>'
+      + '<div style="padding:10px 32px 16px;text-align:center;font-size:11px;color:#6B6454;">' + def.routedTo + ' · sidekixhq.com</div></div>';
+  }
+
+  return (
+    <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:6, padding:"1.25rem" }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"1.25rem", paddingBottom:"1rem", borderBottom:"1px solid "+BORDER }}>
+        <div>
+          <div style={{ fontSize:22, fontFamily:serif, color:TEXT_PRIMARY, lineHeight:1.2 }}>{def.label}</div>
+          <div style={{ fontSize:11, fontFamily:font, color:TEXT_MUTED, marginTop:3 }}>Trigger · {def.trigger}</div>
+          <div style={{ fontSize:11, fontFamily:font, color:TEXT_MUTED, marginTop:2 }}>Routes to · <span style={{ color:GOLD_LIGHT }}>{def.routedTo}</span></div>
+        </div>
+        <div style={{ display:"flex", gap:10, alignItems:"center", marginTop:4 }}>
+          <span style={{ fontSize:10, fontFamily:font, letterSpacing:"0.06em", textTransform:"uppercase", color:active ? GOLD : TEXT_MUTED }}>{active ? "Active" : "Inactive"}</span>
+          <div onClick={() => setActive(a => !a)} style={{ width:34, height:19, borderRadius:10, background:active ? GOLD : BORDER, position:"relative", cursor:"pointer", transition:"background 0.25s" }}>
+            <div style={{ position:"absolute", top:2.5, left:active ? 15 : 2.5, width:14, height:14, borderRadius:"50%", background:active ? "#1C1A14" : TEXT_MUTED, transition:"left 0.25s" }} />
+          </div>
+          {editing
+            ? <><button onClick={cancelEdit} style={{ fontSize:11, padding:"8px 14px", borderRadius:4, border:"1px solid "+BORDER, background:"transparent", color:TEXT_SECONDARY, cursor:"pointer", fontFamily:font }}>Cancel</button>
+                <button onClick={saveEdit}   style={{ fontSize:11, padding:"8px 16px", borderRadius:4, border:"none", background:GOLD, color:"#1C1A14", cursor:"pointer", fontFamily:font, fontWeight:600 }}>Save</button></>
+            : <button onClick={startEdit} style={{ fontSize:11, padding:"8px 14px", borderRadius:4, border:"1px solid "+BORDER, background:"transparent", color:TEXT_SECONDARY, cursor:"pointer", fontFamily:font }}>Edit</button>
+          }
+        </div>
+      </div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"1rem", flexWrap:"wrap", gap:8 }}>
+        <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
+          <span style={{ fontSize:10, fontFamily:font, letterSpacing:"0.08em", textTransform:"uppercase", color:TEXT_MUTED }}>Variables</span>
+          {VARS.map(v => (
+            <code key={v} onClick={() => editing && insertVar(v)} style={{ fontSize:10, background:DARK_CARD2, padding:"2px 7px", borderRadius:3, color:GOLD_LIGHT, fontFamily:mono, border:"1px solid "+BORDER, cursor:editing ? "pointer" : "default" }}>{v}</code>
+          ))}
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+          <span style={{ fontSize:10, fontFamily:font, color:TEXT_MUTED, textTransform:"uppercase" }}>Preview</span>
+          <div style={{ display:"flex", borderRadius:4, border:"1px solid "+BORDER, overflow:"hidden" }}>
+            {["Plain","HTML"].map(m => (
+              <button key={m} onClick={() => setHtmlMode(m === "HTML")} style={{ fontSize:10, padding:"4px 12px", border:"none", background:(m === "HTML") === htmlMode ? GOLD : "transparent", color:(m === "HTML") === htmlMode ? "#1C1A14" : TEXT_MUTED, cursor:"pointer", fontFamily:font }}>{m}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div style={{ marginBottom:"1rem" }}>
+        <label style={lbl}>Subject line</label>
+        {editing
+          ? <input value={draftSubj} onChange={e => setDraftSubj(e.target.value)} style={inp()} />
+          : <div style={inp({ background:DARK_CARD2, color:TEXT_SECONDARY, fontFamily:mono, fontSize:12 })}>{subject}</div>
+        }
+      </div>
+      <div style={{ marginBottom:"1rem" }}>
+        <label style={lbl}>Email body</label>
+        {editing
+          ? <textarea ref={taRef} value={draftBody} onChange={e => setDraftBody(e.target.value)} rows={10} style={inp({ fontFamily:mono, fontSize:12, lineHeight:1.8, resize:"vertical" })} />
+          : htmlMode
+            ? <div style={{ borderRadius:4, border:"1px solid "+BORDER, background:"#1C1A14", padding:10, minHeight:200 }} dangerouslySetInnerHTML={{ __html: buildHtml(body) }} />
+            : <pre style={inp({ background:DARK_CARD2, color:TEXT_SECONDARY, fontFamily:mono, fontSize:12, lineHeight:1.8, whiteSpace:"pre-wrap", wordBreak:"break-word", margin:0 })}>{body}</pre>
+        }
+      </div>
+      {!editing && (
+        <div style={{ marginBottom:"1rem" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
+            <label style={{ ...lbl, marginBottom:0 }}>Unsubscribe footer</label>
+            <span style={{ fontSize:10, fontFamily:font, color:GOLD, background:"rgba(201,169,110,0.1)", border:"1px solid rgba(201,169,110,0.2)", padding:"2px 7px", borderRadius:3, textTransform:"uppercase" }}>Auto-appended</span>
+          </div>
+          <div style={{ borderRadius:4, border:"1px solid "+BORDER, background:DARK_CARD2, padding:"12px 16px", textAlign:"center" }}>
+            <span style={{ fontSize:15, fontWeight:600, fontFamily:font, color:GOLD, textDecoration:"underline" }}>Unsubscribe</span>
+            <span style={{ fontSize:12, fontFamily:font, color:TEXT_MUTED, marginLeft:8 }}>· one click, no questions asked</span>
+            <div style={{ fontSize:10, color:TEXT_MUTED, fontFamily:font, marginTop:6 }}>{def.routedTo} · sidekixhq.com</div>
+          </div>
+        </div>
+      )}
+      {!editing && (
+        <div style={{ borderTop:"1px solid "+BORDER, paddingTop:"1rem" }}>
+          <label style={lbl}>Send a test</label>
+          <div style={{ display:"flex", gap:8 }}>
+            <input type="email" placeholder="you@example.com" value={testEmail} onChange={e => setTestEmail(e.target.value)} style={inp({ flex:1 })} />
+            <button onClick={sendTest} disabled={sending} style={{ fontSize:11, padding:"9px 20px", borderRadius:4, border:"none", background:sending ? BORDER : GOLD, color:sending ? TEXT_MUTED : "#1C1A14", cursor:sending ? "default" : "pointer", fontFamily:font, fontWeight:600, textTransform:"uppercase", whiteSpace:"nowrap" }}>
+              {sending ? "Sending…" : "Send Test"}
+            </button>
+          </div>
+          {testMsg && <div style={{ marginTop:8, fontSize:12, fontFamily:font, color:testMsg.ok ? GOLD : "#E07070", padding:"7px 10px", borderRadius:4, background:testMsg.ok ? "rgba(201,169,110,0.07)" : "rgba(220,100,100,0.07)" }}>{testMsg.msg}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TemplatesTab({ logoUrl }) {
+  const [activeId, setActiveId] = useState("application");
+  return (
+    <div style={{ display:"grid", gridTemplateColumns:"220px 1fr", gap:"1.25rem", alignItems:"start" }}>
+      <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+        {TEMPLATE_ORDER.map(id => {
+          const def = INITIAL_TEMPLATES[id];
+          return (
+            <button key={id} onClick={() => setActiveId(id)} style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 14px", borderRadius:4, background:activeId === id ? DARK_CARD2 : "transparent", border:activeId === id ? "1px solid "+BORDER : "1px solid transparent", cursor:"pointer", textAlign:"left", width:"100%", fontFamily:font }}>
+              <span style={{ fontSize:13, fontFamily:serif, color:activeId === id ? TEXT_PRIMARY : TEXT_SECONDARY, lineHeight:1.3 }}>{def.label}</span>
+              <span style={{ marginLeft:"auto", fontSize:9, padding:"2px 6px", borderRadius:2, background:def.active ? "rgba(201,169,110,0.12)" : "rgba(107,100,84,0.15)", color:def.active ? GOLD : TEXT_MUTED, fontFamily:font }}>{def.active ? "ON" : "OFF"}</span>
+            </button>
+          );
+        })}
+      </div>
+      <TemplateCard key={activeId} def={INITIAL_TEMPLATES[activeId]} logoUrl={logoUrl} />
+    </div>
+  );
+}
+
+// ─── Assignee Input ───────────────────────────────────────────────────────────
+function AssigneeInput({ assignedTo, onChange }) {
+  const [input,       setInput]       = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [known,       setKnown]       = useState(["james@sidekixhq.com","sarah@sidekixhq.com","mike@sidekixhq.com"]);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function handler(e) { if (ref.current && !ref.current.contains(e.target)) setSuggestions([]); }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  function handleInput(v) {
+    setInput(v);
+    if (!v.trim()) { setSuggestions([]); return; }
+    setSuggestions(known.filter(e => e.toLowerCase().includes(v.toLowerCase()) && !assignedTo.includes(e)));
+  }
+  function addEmail(email) {
+    const c = email.trim().toLowerCase();
+    if (!c.includes("@")) return;
+    if (!assignedTo.includes(c)) { setKnown(k => [...new Set([...k, c])]); onChange([...assignedTo, c]); }
+    setInput(""); setSuggestions([]);
+  }
+  function removeEmail(email) { onChange(assignedTo.filter(e => e !== email)); }
+
+  return (
+    <div ref={ref}>
+      <div style={{ display:"flex", flexWrap:"wrap", gap:5, marginBottom: assignedTo.length ? 8 : 0 }}>
+        {assignedTo.map(e => (
+          <div key={e} style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:3, background:"rgba(201,169,110,0.1)", border:"1px solid rgba(201,169,110,0.25)", fontSize:11, fontFamily:font, color:GOLD_LIGHT }}>
+            {e}<button onClick={() => removeEmail(e)} style={{ background:"none", border:"none", color:TEXT_MUTED, cursor:"pointer", fontSize:13, padding:0, lineHeight:1, marginLeft:2 }}>×</button>
+          </div>
+        ))}
+      </div>
+      <div style={{ position:"relative" }}>
+        <input value={input} onChange={e => handleInput(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter" && input.trim()) { addEmail(input); e.preventDefault(); } }}
+          placeholder="Type email + Enter to assign…" style={inp()} />
+        {suggestions.length > 0 && (
+          <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, right:0, background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:4, zIndex:100, boxShadow:"0 4px 16px rgba(0,0,0,0.4)", overflow:"hidden" }}>
+            {suggestions.map(s => (
+              <div key={s} onClick={() => addEmail(s)}
+                style={{ padding:"8px 12px", fontSize:12, fontFamily:font, color:TEXT_SECONDARY, cursor:"pointer", borderBottom:"1px solid "+BORDER }}
+                onMouseEnter={e => e.currentTarget.style.background = DARK_CARD2}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                {s}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <div style={{ fontSize:10, color:TEXT_MUTED, fontFamily:font, marginTop:4 }}>Type a @sidekixhq.com email and press Enter. Previously tagged appear as suggestions.</div>
+    </div>
+  );
+}
+
+// ─── Email Composer — always top-level, never nested ──────────────────────────
+function EmailComposer({ isInvite, person, app, show, setShow, sent, setSent, subj, setSubj, body, setBody, defSubj, defBody }) {
+  const color  = isInvite ? "#6AB4E8" : "#E07070";
+  const sendBg = isInvite ? "#6AB4E8" : "#C85050";
+  const title  = isInvite ? "Interview Invitation" : "Rejection Email";
+  const vars   = isInvite ? ["{{first_name}}","{{expertise}}","{{email}}"] : ["{{first_name}}","{{email}}"];
+  const expertise = app && app.expertise && app.expertise[0] ? app.expertise[0] : "your expertise";
+
+  return (
+    <div style={{ marginTop:12, borderTop:"1px solid "+BORDER, paddingTop:12 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+        <span style={{ fontSize:11, fontFamily:font, fontWeight:600, color, letterSpacing:"0.06em", textTransform:"uppercase" }}>{title}</span>
+        <div style={{ display:"flex", gap:6 }}>
+          {!show
+            ? <button onClick={() => setShow(true)} style={{ fontSize:10, background:"none", border:"1px solid "+BORDER, borderRadius:3, color:TEXT_MUTED, cursor:"pointer", fontFamily:font, textTransform:"uppercase", padding:"3px 10px" }}>Edit</button>
+            : <><button onClick={() => setShow(false)} style={{ fontSize:10, background:"none", border:"none", color:TEXT_MUTED, cursor:"pointer", fontFamily:font }}>Done</button>
+                <button onClick={() => { setSubj(defSubj); setBody(defBody); }} style={{ fontSize:10, background:"none", border:"none", color:TEXT_MUTED, cursor:"pointer", fontFamily:font }}>Reset</button></>
+          }
+          <button onClick={async () => {
+            setSent("sending");
+            try {
+              const res  = await fetch(SERVER_URL + "/send-email", {
+                method:  "POST",
+                headers: { "Content-Type": "application/json", "X-SideKix-Secret": SERVER_SECRET },
+                body:    JSON.stringify({ to: person.email, from: "Advisors@sidekixhq.com", fromName: "SideKix Advisors", replyTo: "Advisors@sidekixhq.com", subject: subj, body }),
+              });
+              const data = await res.json();
+              setSent(data.success ? "sent" : "error");
+            } catch (err) { setSent("error"); }
+          }} style={{ fontSize:10, padding:"3px 14px", borderRadius:3, border:"none", background:sent==="sent" ? "#4A7A4A" : sent==="error" ? "#C85050" : sendBg, color:sent==="sent"||sent==="error" ? "#F0EAD6" : isInvite ? "#1C1A14" : "#F0EAD6", cursor:"pointer", fontFamily:font, fontWeight:600, textTransform:"uppercase" }}>
+            {sent==="sent" ? "Sent" : sent==="sending" ? "Sending..." : sent==="error" ? "Failed" : "Send"}
+          </button>
+        </div>
+      </div>
+      {show ? (
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          <div style={{ fontSize:11, fontFamily:font, color:TEXT_SECONDARY, padding:"6px 10px", borderRadius:4, background:DARK_CARD2, border:"1px solid "+BORDER }}>From: <span style={{ fontFamily:mono, color:GOLD_LIGHT }}>Advisors@sidekixhq.com</span></div>
+          <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
+            {vars.map(v => <code key={v} onClick={() => setBody(b => b + " " + v)} style={{ fontSize:9, background:DARK_CARD2, padding:"2px 6px", borderRadius:2, color:GOLD_LIGHT, fontFamily:mono, border:"1px solid "+BORDER, cursor:"pointer" }}>{v}</code>)}
+          </div>
+          <input value={subj} onChange={e => setSubj(e.target.value)} style={inp({ fontSize:12 })} placeholder="Subject…" />
+          <textarea value={body} onChange={e => setBody(e.target.value)} rows={10} style={inp({ fontFamily:mono, fontSize:11, lineHeight:1.8, resize:"vertical" })} />
+        </div>
+      ) : (
+        <div style={{ padding:"8px 10px", borderRadius:4, background:DARK_CARD2, border:"1px solid "+BORDER }}>
+          <div style={{ fontSize:11, fontFamily:font, color:TEXT_SECONDARY, marginBottom:3 }}>From: <span style={{ fontFamily:mono, color:GOLD_LIGHT }}>Advisors@sidekixhq.com</span></div>
+          <div style={{ fontSize:11, fontFamily:font, color:TEXT_SECONDARY, marginBottom:3 }}>To: <span style={{ fontFamily:mono, color:GOLD_LIGHT }}>{person.email}</span></div>
+          <div style={{ fontSize:11, fontFamily:font, color:TEXT_SECONDARY, marginBottom:8 }}>
+            Subject: <span style={{ color:TEXT_PRIMARY }}>{subj.replace(/\{\{first_name\}\}/g, person.firstName).replace(/\{\{expertise\}\}/g, expertise)}</span>
+          </div>
+          <pre style={{ margin:0, fontSize:11, fontFamily:mono, color:TEXT_MUTED, lineHeight:1.7, whiteSpace:"pre-wrap", wordBreak:"break-word" }}>
+            {body.replace(/\{\{first_name\}\}/g, person.firstName).replace(/\{\{expertise\}\}/g, expertise).replace(/\{\{email\}\}/g, person.email).slice(0, 300)}…
+          </pre>
+          <div style={{ marginTop:10, paddingTop:10, borderTop:"1px solid "+BORDER, textAlign:"center" }}>
+            <span style={{ fontSize:13, fontWeight:600, color:GOLD, textDecoration:"underline", fontFamily:font }}>Unsubscribe</span>
+            <span style={{ fontSize:11, color:TEXT_MUTED, fontFamily:font, marginLeft:6 }}>· one click, no questions asked</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Application Modal ────────────────────────────────────────────────────────
+function ApplicationModal({ person, onClose, onUpdate }) {
+  const [notes,     setNotes]     = useState(person.notes || "");
+  const [editNotes, setEditNotes] = useState(false);
+  const [status,    setStatus]    = useState(person.status);
+  const [review,    setReview]    = useState(person.reviewStatus || "Pending");
+  const [assigned,  setAssigned]  = useState(person.assignedTo || []);
+  const [activeTab, setActiveTab] = useState("application");
+  const [showInv,   setShowInv]   = useState(false);
+  const [sentInv,   setSentInv]   = useState(false);
+  const [invSubj,   setInvSubj]   = useState(DEFAULT_INTERVIEW_SUBJECT);
+  const [invBody,   setInvBody]   = useState(DEFAULT_INTERVIEW_BODY);
+  const [showRej,   setShowRej]   = useState(false);
+  const [sentRej,   setSentRej]   = useState(false);
+  const [rejSubj,   setRejSubj]   = useState(DEFAULT_REJECTION_SUBJECT);
+  const [rejBody,   setRejBody]   = useState(DEFAULT_REJECTION_BODY);
+  const app  = person.application;
+  const tabs = [{ id:"application", label:"Application" }, { id:"profile", label:"Profile" }, { id:"history", label:"Email History" }];
+
+  function handleReview(s) {
+    setReview(s); onUpdate(person.id, { reviewStatus: s });
+    if (s === "Interview") setShowInv(true);
+    if (s === "Rejected")  setShowRej(true);
+  }
+
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:1000, background:"rgba(0,0,0,0.75)", display:"flex", alignItems:"flex-start", justifyContent:"center", padding:"2rem", overflowY:"auto" }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{ background:DARK_BG, border:"1px solid "+BORDER, borderRadius:10, width:"100%", maxWidth:900 }}>
+        {/* Header */}
+        <div style={{ padding:"1.5rem 2rem", borderBottom:"1px solid "+BORDER, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div style={{ display:"flex", gap:14, alignItems:"center" }}>
+            <Avatar first={person.firstName} last={person.lastName} size={48} />
+            <div>
+              <div style={{ fontSize:24, fontFamily:serif, color:TEXT_PRIMARY, lineHeight:1.1 }}>{person.firstName} {person.lastName}</div>
+              <div style={{ fontSize:12, fontFamily:mono, color:TEXT_SECONDARY, marginTop:3 }}>{person.email}</div>
+            </div>
+            <div style={{ display:"flex", gap:6, marginLeft:8, flexWrap:"wrap" }}>
+              <SourceTag source={person.source} /><StatusTag status={status} /><ReviewTag status={review} />
+            </div>
+          </div>
+          <button onClick={onClose} style={{ fontSize:11, padding:"6px 14px", borderRadius:4, border:"1px solid "+BORDER, background:"transparent", color:TEXT_MUTED, cursor:"pointer", fontFamily:font, textTransform:"uppercase" }}>✕ Close</button>
+        </div>
+        {/* Tabs */}
+        <div style={{ display:"flex", borderBottom:"1px solid "+BORDER, padding:"0 2rem" }}>
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setActiveTab(t.id)} style={{ background:"none", border:"none", borderBottom:activeTab === t.id ? "2px solid "+GOLD : "2px solid transparent", padding:"12px 20px", fontSize:11, fontWeight:500, letterSpacing:"0.08em", textTransform:"uppercase", color:activeTab === t.id ? GOLD : TEXT_MUTED, cursor:"pointer", fontFamily:font, marginBottom:-1 }}>{t.label}</button>
+          ))}
+        </div>
+        {/* Content */}
+        <div style={{ padding:"1.5rem 2rem", overflowY:"auto", maxHeight:"72vh" }}>
+
+          {activeTab === "application" && app && (
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.5rem" }}>
+              <div>
+                <div style={{ marginBottom:"1.25rem", padding:14, background:DARK_CARD, borderRadius:6, border:"1px solid "+BORDER }}>
+                  <label style={{ ...lbl, marginBottom:10 }}>Review Decision</label>
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:(review === "Interview" || review === "Rejected") ? 12 : 0 }}>
+                    {["Pending","Under Review","Interview","Approved","Rejected","On Hold"].map(s => {
+                      const c = REVIEW_COLORS[s];
+                      return <button key={s} onClick={() => handleReview(s)} style={{ fontSize:11, padding:"6px 14px", borderRadius:4, border:"1px solid "+(review === s ? c.border : BORDER), background:review === s ? c.bg : "transparent", color:review === s ? c.color : TEXT_MUTED, cursor:"pointer", fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em", transition:"all 0.15s" }}>{s}</button>;
+                    })}
+                  </div>
+                  {review === "Interview" && <EmailComposer isInvite={true} person={person} app={app} show={showInv} setShow={setShowInv} sent={sentInv} setSent={setSentInv} subj={invSubj} setSubj={setInvSubj} body={invBody} setBody={setInvBody} defSubj={DEFAULT_INTERVIEW_SUBJECT} defBody={DEFAULT_INTERVIEW_BODY} />}
+                  {review === "Rejected"  && <EmailComposer isInvite={false} person={person} app={app} show={showRej} setShow={setShowRej} sent={sentRej} setSent={setSentRej} subj={rejSubj} setSubj={setRejSubj} body={rejBody} setBody={setRejBody} defSubj={DEFAULT_REJECTION_SUBJECT} defBody={DEFAULT_REJECTION_BODY} />}
+                </div>
+                <Accordion title="Getting Started">
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.5rem 1rem" }}>
+                    <InfoField label="City / State" value={app.city} />
+                    <InfoField label="Zip Code"     value={app.zip} />
+                    <InfoField label="Phone"        value={app.phone ? "tel:" + app.phone.replace(/[^0-9]/g,"") : ""} displayValue={app.phone} />
+                    <InfoField label="Website"      value={app.website} />
+                    <InfoField label="Social"       value={app.socialHandles} />
+                    <InfoField label="LinkedIn"     value={app.linkedin} />
+                  </div>
+                </Accordion>
+                <Accordion title="Background">
+                  <div style={{ marginBottom:"0.75rem" }}><div style={{ ...lbl, marginBottom:6 }}>Background</div><Chips items={app.background} /></div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.5rem 1rem", marginBottom:"0.75rem" }}>
+                    <InfoField label="Years as Owner" value={app.yearsOwner} />
+                    <InfoField label="Prior Advisor"  value={app.priorAdvisor} />
+                  </div>
+                  <div style={{ ...lbl, marginBottom:6 }}>Business Types</div><Chips items={app.businessTypes} />
+                </Accordion>
+                <Accordion title="Languages and Resume">
+                  <div style={{ marginBottom:"0.75rem" }}><div style={{ ...lbl, marginBottom:6 }}>Languages</div><Chips items={app.languages} /></div>
+                  {app.resume && (
+                    <a href={app.resume} target="_blank" rel="noopener noreferrer" style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"7px 12px", borderRadius:4, background:"rgba(201,169,110,0.08)", border:"1px solid rgba(201,169,110,0.25)", textDecoration:"none" }}>
+                      <span>📄</span><span style={{ fontSize:12, color:GOLD, fontFamily:font, textDecoration:"underline" }}>{app.resumeName || "View Resume"} ↗</span>
+                    </a>
+                  )}
+                </Accordion>
+              </div>
+              <div>
+                <Accordion title="Area of Expertise"><Chips items={app.expertise} /></Accordion>
+                <Accordion title="Key Strengths"><Chips items={app.strengths} /></Accordion>
+                <Accordion title="Challenge That Pushed You">
+                  <div style={{ fontSize:13, fontFamily:font, color:TEXT_SECONDARY, lineHeight:1.9, padding:"10px 12px", borderRadius:4, background:DARK_CARD2, border:"1px solid "+BORDER }}>{app.challenge}</div>
+                </Accordion>
+                <Accordion title="Why SideKix Advisor?">
+                  <div style={{ fontSize:13, fontFamily:font, color:TEXT_SECONDARY, lineHeight:1.9, padding:"10px 12px", borderRadius:4, background:DARK_CARD2, border:"1px solid "+BORDER }}>{app.whyAdvisor}</div>
+                </Accordion>
+                <Accordion title="Assigned To">
+                  <AssigneeInput assignedTo={assigned} onChange={a => { setAssigned(a); onUpdate(person.id, { assignedTo: a }); }} />
+                  {assigned.length > 0 && <div style={{ marginTop:8, fontSize:11, fontFamily:font, color:TEXT_MUTED }}>📧 Assigned team members are notified on status changes.</div>}
+                </Accordion>
+                <Accordion title="Internal Notes">
+                  <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:6 }}>
+                    {!editNotes
+                      ? <button onClick={() => setEditNotes(true)} style={{ fontSize:10, background:"none", border:"none", color:TEXT_MUTED, cursor:"pointer", fontFamily:font, textTransform:"uppercase" }}>Edit</button>
+                      : <div style={{ display:"flex", gap:8 }}>
+                          <button onClick={() => setEditNotes(false)} style={{ fontSize:10, background:"none", border:"none", color:TEXT_MUTED, cursor:"pointer", fontFamily:font }}>Cancel</button>
+                          <button onClick={() => { onUpdate(person.id, { notes }); setEditNotes(false); }} style={{ fontSize:10, background:"none", border:"none", color:GOLD, cursor:"pointer", fontFamily:font, fontWeight:600 }}>Save</button>
+                        </div>
+                    }
+                  </div>
+                  {editNotes
+                    ? <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={4} style={inp({ resize:"vertical", lineHeight:1.6 })} />
+                    : <div style={{ fontSize:12, fontFamily:font, color:notes ? TEXT_SECONDARY : TEXT_MUTED, padding:"8px 10px", borderRadius:4, border:"1px solid "+BORDER, background:DARK_CARD2, minHeight:60, lineHeight:1.7 }}>{notes || "No notes yet."}</div>
+                  }
+                </Accordion>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "profile" && (
+            <div style={{ maxWidth:480 }}>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.5rem 1.5rem", marginBottom:"1.25rem" }}>
+                <InfoField label="Source" value={person.source} /><InfoField label="Joined" value={person.joined} />
+                <InfoField label="Status" value={status} /><InfoField label="Email" value={person.email} />
+              </div>
+              <label style={lbl}>Change Status</label>
+              <div style={{ display:"flex", gap:6 }}>
+                {["Active","Unsubscribed","Bounced"].map(s => {
+                  const c = STATUS_COLORS[s];
+                  return <button key={s} onClick={() => { setStatus(s); onUpdate(person.id, { status: s }); }} style={{ fontSize:11, padding:"6px 14px", borderRadius:4, border:"1px solid "+(status === s ? c.border : BORDER), background:status === s ? c.bg : "transparent", color:status === s ? c.color : TEXT_MUTED, cursor:"pointer", fontFamily:font, textTransform:"uppercase" }}>{s}</button>;
+                })}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "history" && (
+            <div style={{ maxWidth:560 }}>
+              {[{ template:"Application Received", sent:person.joined, opened:true, clicked:false }].map((e, i) => (
+                <div key={i} style={{ padding:"12px 14px", borderRadius:4, background:DARK_CARD, border:"1px solid "+BORDER, marginBottom:8 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between" }}>
+                    <span style={{ fontSize:13, fontFamily:font, color:TEXT_PRIMARY }}>{e.template}</span>
+                    <div style={{ display:"flex", gap:12 }}>
+                      <span style={{ color:e.opened ? TEXT_SECONDARY : TEXT_MUTED, fontSize:12 }}>{e.opened ? "👁 Opened" : "—"}</span>
+                      <span style={{ color:e.clicked ? TEXT_SECONDARY : TEXT_MUTED, fontSize:12 }}>{e.clicked ? "🔗 Clicked" : "—"}</span>
+                    </div>
+                  </div>
+                  <div style={{ fontSize:11, color:TEXT_MUTED, fontFamily:font, marginTop:4 }}>{e.sent}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Side Panel ───────────────────────────────────────────────────────────────
+function SidePanel({ person, onClose, onUpdate }) {
+  const [notes,     setNotes]     = useState(person.notes || "");
+  const [editNotes, setEditNotes] = useState(false);
+  const [status,    setStatus]    = useState(person.status);
+  const [activeTab, setActiveTab] = useState("profile");
+  const tabs = [{ id:"profile", label:"Profile" }, { id:"history", label:"Email History" }];
+
+  return (
+    <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:6, overflow:"hidden", position:"sticky", top:0, maxHeight:"90vh", display:"flex", flexDirection:"column" }}>
+      <div style={{ padding:"1rem 1.25rem", borderBottom:"1px solid "+BORDER, flexShrink:0 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"0.75rem" }}>
+          <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+            <Avatar first={person.firstName} last={person.lastName} />
+            <div>
+              <div style={{ fontSize:17, fontFamily:serif, color:TEXT_PRIMARY }}>{person.firstName} {person.lastName}</div>
+              <div style={{ fontSize:11, fontFamily:mono, color:TEXT_SECONDARY, marginTop:1 }}>{person.email}</div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background:"none", border:"none", color:TEXT_MUTED, cursor:"pointer", fontSize:16, padding:4 }}>✕</button>
+        </div>
+        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}><SourceTag source={person.source} /><StatusTag status={status} /></div>
+      </div>
+      <div style={{ display:"flex", borderBottom:"1px solid "+BORDER, flexShrink:0 }}>
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setActiveTab(t.id)} style={{ flex:1, background:"none", border:"none", borderBottom:activeTab === t.id ? "1px solid "+GOLD : "1px solid transparent", padding:"8px", fontSize:10, fontWeight:500, letterSpacing:"0.08em", textTransform:"uppercase", color:activeTab === t.id ? GOLD : TEXT_MUTED, cursor:"pointer", fontFamily:font, marginBottom:-1 }}>{t.label}</button>
+        ))}
+      </div>
+      <div style={{ overflowY:"auto", flex:1, padding:"1rem 1.25rem" }}>
+        {activeTab === "profile" && (
+          <div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.5rem 1rem", marginBottom:"1rem" }}>
+              <InfoField label="Source" value={person.source} /><InfoField label="Joined" value={person.joined} />
+              <InfoField label="Status" value={status} /><InfoField label="Email" value={person.email} />
+            </div>
+            <div style={{ marginBottom:"1rem" }}>
+              <label style={lbl}>Change Status</label>
+              <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                {["Active","Unsubscribed","Bounced"].map(s => {
+                  const c = STATUS_COLORS[s];
+                  return <button key={s} onClick={() => { setStatus(s); onUpdate(person.id, { status: s }); }} style={{ fontSize:11, padding:"5px 12px", borderRadius:4, border:"1px solid "+(status === s ? c.border : BORDER), background:status === s ? c.bg : "transparent", color:status === s ? c.color : TEXT_MUTED, cursor:"pointer", fontFamily:font, textTransform:"uppercase" }}>{s}</button>;
+                })}
+              </div>
+            </div>
+            <div style={{ marginBottom:"1rem" }}>
+              <label style={lbl}>Tags</label>
+              <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>{person.tags.map((t, i) => <Tag key={i} label={t} style={{ background:DARK_CARD2, color:TEXT_SECONDARY, border:"1px solid "+BORDER }} />)}</div>
+            </div>
+            <div>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
+                <label style={{ ...lbl, marginBottom:0 }}>Notes</label>
+                {!editNotes
+                  ? <button onClick={() => setEditNotes(true)} style={{ fontSize:10, background:"none", border:"none", color:TEXT_MUTED, cursor:"pointer", fontFamily:font, textTransform:"uppercase" }}>Edit</button>
+                  : <div style={{ display:"flex", gap:8 }}>
+                      <button onClick={() => setEditNotes(false)} style={{ fontSize:10, background:"none", border:"none", color:TEXT_MUTED, cursor:"pointer", fontFamily:font }}>Cancel</button>
+                      <button onClick={() => { onUpdate(person.id, { notes }); setEditNotes(false); }} style={{ fontSize:10, background:"none", border:"none", color:GOLD, cursor:"pointer", fontFamily:font, fontWeight:600 }}>Save</button>
+                    </div>
+                }
+              </div>
+              {editNotes
+                ? <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={4} style={inp({ resize:"vertical", lineHeight:1.6 })} />
+                : <div style={{ fontSize:12, fontFamily:font, color:notes ? TEXT_SECONDARY : TEXT_MUTED, padding:"8px 10px", borderRadius:4, border:"1px solid "+BORDER, background:DARK_CARD2, minHeight:60, lineHeight:1.7 }}>{notes || "No notes yet."}</div>
+              }
+            </div>
+          </div>
+        )}
+        {activeTab === "history" && (
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {[
+              { template: person.source === "Contact" ? "Contact Form" : "Subscriber Welcome", sent: person.joined, opened: true, clicked: false },
+              ...(person.source === "Subscriber" ? [
+                { template:"Follow-up · Day 3", sent:"3 days later", opened:false, clicked:false },
+                { template:"Follow-up · Day 7", sent:"7 days later", opened:false, clicked:false },
+              ] : []),
+            ].map((e, i) => (
+              <div key={i} style={{ padding:"10px 12px", borderRadius:4, background:DARK_CARD2, border:"1px solid "+BORDER }}>
+                <div style={{ display:"flex", justifyContent:"space-between" }}>
+                  <span style={{ fontSize:12, fontFamily:font, color:TEXT_PRIMARY }}>{e.template}</span>
+                  <div style={{ display:"flex", gap:10 }}>
+                    <span style={{ color:e.opened ? TEXT_SECONDARY : TEXT_MUTED, fontSize:11 }}>{e.opened ? "👁" : "—"}</span>
+                    <span style={{ color:e.clicked ? TEXT_SECONDARY : TEXT_MUTED, fontSize:11 }}>{e.clicked ? "🔗" : "—"}</span>
+                  </div>
+                </div>
+                <div style={{ fontSize:11, color:TEXT_MUTED, fontFamily:font, marginTop:3 }}>{e.sent}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Subscribers Tab ──────────────────────────────────────────────────────────
+function SubscribersTab({ currentUser }) {
+  const [subs,         setSubs]         = useState(MOCK_SUBSCRIBERS);
+  const [search,       setSearch]       = useState("");
+  const [sourceFilter, setSourceFilter] = useState("All sources");
+  const [statusFilter, setStatusFilter] = useState("All statuses");
+  const [reviewFilter, setReviewFilter] = useState("All reviews");
+  const [sort,         setSort]         = useState("Newest first");
+  const [selectedIds,  setSelectedIds]  = useState(new Set());
+  const [activePerson, setActivePerson] = useState(null);
+
+  const filtered = useMemo(() => {
+    let list = subs.filter(s => {
+      const mSrc  = sourceFilter === "All sources"  || s.source === sourceFilter;
+      const mStt  = statusFilter === "All statuses" || s.status === statusFilter;
+      const mRev  = reviewFilter === "All reviews"  || (s.source === "Application" && s.reviewStatus === reviewFilter);
+      const q = search.toLowerCase();
+      const mSrch = !q || s.email.toLowerCase().includes(q) || s.firstName.toLowerCase().includes(q) || s.lastName.toLowerCase().includes(q) || s.tags.some(t => t.toLowerCase().includes(q));
+      return mSrc && mStt && mRev && mSrch;
+    });
+    if (sort === "Newest first") list = [...list].reverse();
+    if (sort === "Name A-Z")     list = [...list].sort((a,b) => a.lastName.localeCompare(b.lastName));
+    if (sort === "Name Z-A")     list = [...list].sort((a,b) => b.lastName.localeCompare(a.lastName));
+    return list;
+  }, [subs, search, sourceFilter, statusFilter, reviewFilter, sort]);
+
+  const allChecked  = filtered.length > 0 && filtered.every(s => selectedIds.has(s.id));
+  const someChecked = filtered.some(s => selectedIds.has(s.id));
+  function toggleRow(id) { setSelectedIds(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; }); }
+  function toggleAll() {
+    if (allChecked) setSelectedIds(p => { const n = new Set(p); filtered.forEach(s => n.delete(s.id)); return n; });
+    else            setSelectedIds(p => { const n = new Set(p); filtered.forEach(s => n.add(s.id));    return n; });
+  }
+  function updatePerson(id, updates) {
+    setSubs(p => p.map(s => s.id === id ? Object.assign({}, s, updates) : s));
+    if (activePerson && activePerson.id === id) setActivePerson(p => Object.assign({}, p, updates));
+  }
+  function downloadCSV() {
+    const rows = (selectedIds.size > 0 ? filtered.filter(s => selectedIds.has(s.id)) : filtered)
+      .map(s => [s.firstName, s.lastName, s.email, s.source, s.status, s.reviewStatus || "", s.tags.join("; "), s.joined, s.notes || ""]);
+    const csv = [["First Name","Last Name","Email","Source","Status","Review","Tags","Joined","Notes"], ...rows].map(r => r.map(v => '"' + v + '"').join(",")).join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type:"text/csv" }));
+    a.download = "sidekix-subscribers.csv"; a.click();
+  }
+
+  const stats = [
+    { label:"Total",        value:subs.length,                                         onClick:() => { setSourceFilter("All sources"); setStatusFilter("All statuses"); setReviewFilter("All reviews"); } },
+    { label:"Active",       value:subs.filter(s => s.status === "Active").length,       onClick:() => { setStatusFilter("Active"); setSourceFilter("All sources"); } },
+    { label:"Subscribers",  value:subs.filter(s => s.source === "Subscriber").length,   onClick:() => { setSourceFilter("Subscriber"); setStatusFilter("All statuses"); } },
+    { label:"Applications", value:subs.filter(s => s.source === "Application").length,  onClick:() => { setSourceFilter("Application"); setStatusFilter("All statuses"); } },
+    { label:"Contacts",     value:subs.filter(s => s.source === "Contact").length,      onClick:() => { setSourceFilter("Contact"); setStatusFilter("All statuses"); } },
+    { label:"Unsubscribed", value:subs.filter(s => s.status === "Unsubscribed").length, onClick:() => { setStatusFilter("Unsubscribed"); setSourceFilter("All sources"); } },
+  ];
+  const th = { padding:"10px 14px", textAlign:"left", fontFamily:font, fontWeight:500, fontSize:10, letterSpacing:"0.1em", textTransform:"uppercase", color:TEXT_MUTED, borderBottom:"1px solid "+BORDER, whiteSpace:"nowrap" };
+
+  return (
+    <div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(6,1fr)", gap:10, marginBottom:"1.5rem" }}>
+        {stats.map(({ label, value, onClick }) => (
+          <div key={label} onClick={onClick} style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:4, padding:"12px 16px", cursor:"pointer" }}>
+            <div style={{ fontSize:10, fontFamily:font, fontWeight:500, letterSpacing:"0.1em", textTransform:"uppercase", color:TEXT_MUTED, marginBottom:4 }}>{label}</div>
+            <div style={{ fontSize:26, fontFamily:serif, color:TEXT_PRIMARY }}>{value}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:activePerson && activePerson.source !== "Application" ? "1fr 340px" : "1fr", gap:"1.25rem", alignItems:"start" }}>
+        <div>
+          <div style={{ display:"flex", gap:8, marginBottom:"0.75rem", alignItems:"center", flexWrap:"wrap" }}>
+            <input type="text" placeholder="Search name, email, tag…" value={search} onChange={e => setSearch(e.target.value)} style={inp({ flex:1, minWidth:180 })} />
+            <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)} style={inp({ width:"auto", cursor:"pointer" })}>{ALL_SOURCES.map(o => <option key={o} value={o}>{o}</option>)}</select>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={inp({ width:"auto", cursor:"pointer" })}>{ALL_STATUSES.map(o => <option key={o} value={o}>{o}</option>)}</select>
+            <select value={reviewFilter} onChange={e => setReviewFilter(e.target.value)} style={inp({ width:"auto", cursor:"pointer" })}>{ALL_REVIEW.map(o => <option key={o} value={o}>{o}</option>)}</select>
+            <select value={sort}         onChange={e => setSort(e.target.value)}         style={inp({ width:"auto", cursor:"pointer" })}>{ALL_SORT.map(o => <option key={o} value={o}>{o}</option>)}</select>
+            <button onClick={downloadCSV} style={{ padding:"9px 16px", fontSize:11, fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase", borderRadius:4, border:"none", background:GOLD, color:"#1C1A14", cursor:"pointer", fontFamily:font, whiteSpace:"nowrap" }}>
+              ↓ Export {selectedIds.size > 0 ? selectedIds.size + " selected" : "all " + filtered.length}
+            </button>
+          </div>
+          {selectedIds.size > 0 && (
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:"0.75rem", padding:"8px 12px", background:"rgba(201,169,110,0.08)", border:"1px solid rgba(201,169,110,0.2)", borderRadius:4, fontSize:12, color:GOLD_LIGHT, fontFamily:font }}>
+              <span>{selectedIds.size} contact{selectedIds.size !== 1 ? "s" : ""} selected</span>
+              <button onClick={() => setSelectedIds(new Set())} style={{ marginLeft:"auto", background:"none", border:"none", color:TEXT_MUTED, cursor:"pointer", fontSize:11, fontFamily:font }}>Clear</button>
+            </div>
+          )}
+          <div style={{ border:"1px solid "+BORDER, borderRadius:6, overflow:"hidden" }}>
+            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12, tableLayout:"fixed" }}>
+              <colgroup>
+                <col style={{ width:"4%" }}/><col style={{ width:"19%" }}/><col style={{ width:"17%" }}/>
+                <col style={{ width:"10%" }}/><col style={{ width:"10%" }}/><col style={{ width:"10%" }}/>
+                <col style={{ width:"13%" }}/><col style={{ width:"10%" }}/><col style={{ width:"9%" }}/>
+              </colgroup>
+              <thead>
+                <tr style={{ background:DARK_CARD2 }}>
+                  <th style={th}><input type="checkbox" checked={allChecked} ref={el => { if (el) el.indeterminate = someChecked && !allChecked; }} onChange={toggleAll} style={{ width:14, height:14, accentColor:GOLD, cursor:"pointer" }} /></th>
+                  {["Name","Email","Source","Status","Review","Tags","Assigned","Joined"].map(h => <th key={h} style={th}>{h}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0
+                  ? <tr><td colSpan={9} style={{ padding:"2.5rem", textAlign:"center", color:TEXT_MUTED, fontFamily:font }}>No subscribers found</td></tr>
+                  : filtered.map((s, i) => {
+                    const isSel = selectedIds.has(s.id);
+                    const isAct = activePerson && activePerson.id === s.id;
+                    return (
+                      <tr key={s.id} onClick={() => setActivePerson(isAct ? null : s)} style={{ borderBottom: i < filtered.length - 1 ? "1px solid "+BORDER : "none", background: isAct ? "rgba(201,169,110,0.07)" : isSel ? "rgba(201,169,110,0.04)" : "transparent", cursor:"pointer" }}>
+                        <td style={{ padding:"10px 14px" }}><input type="checkbox" checked={isSel} onChange={() => toggleRow(s.id)} onClick={e => e.stopPropagation()} style={{ width:14, height:14, accentColor:GOLD, cursor:"pointer" }} /></td>
+                        <td style={{ padding:"10px 14px" }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                            <Avatar first={s.firstName} last={s.lastName} />
+                            <span style={{ fontSize:13, fontFamily:serif, color:TEXT_PRIMARY, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.firstName} {s.lastName}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding:"10px 14px", color:TEXT_SECONDARY, fontFamily:mono, fontSize:11, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.email}</td>
+                        <td style={{ padding:"10px 14px" }}><SourceTag source={s.source} /></td>
+                        <td style={{ padding:"10px 14px" }}><StatusTag status={s.status} /></td>
+                        <td style={{ padding:"10px 14px" }}>{s.source === "Application" ? <ReviewTag status={s.reviewStatus || "Pending"} /> : <span style={{ color:TEXT_MUTED, fontSize:12 }}>—</span>}</td>
+                        <td style={{ padding:"10px 14px" }}>
+                          <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
+                            {s.tags.slice(0,2).map((t, j) => <Tag key={j} label={t} style={{ background:DARK_CARD2, color:TEXT_SECONDARY, border:"1px solid "+BORDER, fontSize:10 }} />)}
+                            {s.tags.length > 2 && <span style={{ fontSize:10, color:TEXT_MUTED, fontFamily:font }}>+{s.tags.length - 2}</span>}
+                          </div>
+                        </td>
+                        <td style={{ padding:"10px 14px" }}>
+                          {s.assignedTo && s.assignedTo.length > 0
+                            ? <div style={{ display:"flex", gap:3 }}>
+                                <span style={{ fontSize:10, padding:"2px 6px", borderRadius:3, background:"rgba(201,169,110,0.1)", border:"1px solid rgba(201,169,110,0.2)", color:GOLD_LIGHT, fontFamily:font }}>{s.assignedTo[0].split("@")[0]}</span>
+                                {s.assignedTo.length > 1 && <span style={{ fontSize:10, color:TEXT_MUTED, fontFamily:font }}>+{s.assignedTo.length - 1}</span>}
+                              </div>
+                            : <span style={{ color:TEXT_MUTED, fontSize:12 }}>—</span>}
+                        </td>
+                        <td style={{ padding:"10px 14px", color:TEXT_MUTED, fontFamily:font, fontSize:11, whiteSpace:"nowrap" }}>{s.joined}</td>
+                      </tr>
+                    );
+                  })
+                }
+              </tbody>
+            </table>
+          </div>
+          <div style={{ marginTop:"0.75rem", fontSize:11, color:TEXT_MUTED, fontFamily:font }}>{filtered.length} of {subs.length} subscribers · Click any row to view details</div>
+        </div>
+        {activePerson && activePerson.source === "Application" && <ApplicationModal person={activePerson} onClose={() => setActivePerson(null)} onUpdate={updatePerson} />}
+        {activePerson && activePerson.source !== "Application" && <SidePanel person={activePerson} onClose={() => setActivePerson(null)} onUpdate={updatePerson} />}
+      </div>
+    </div>
+  );
+}
+
+// ─── Pipeline Tab ─────────────────────────────────────────────────────────────
+function PipelineTab() {
+  const apps = MOCK_SUBSCRIBERS.filter(s => s.source === "Application" && s.statusHistory);
+  const rows = apps.map(s => {
+    const h = s.statusHistory || [];
+    function days(from, to) {
+      const f = h.find(x => x.status === from), t = h.find(x => x.status === to);
+      if (!f || !t) return null;
+      return Math.round((new Date(t.date) - new Date(f.date)) / 86400000);
+    }
+    return { ...s, appToReview: days("Pending","Under Review"), reviewToIntv: days("Under Review","Interview"), intvToApprove: days("Interview","Approved"), appToHired: days("Pending","Approved") };
+  });
+  function avg(key) {
+    const vals = rows.map(r => r[key]).filter(v => v !== null && v !== undefined);
+    if (!vals.length) return "—";
+    return (vals.reduce((a,b) => a+b, 0) / vals.length).toFixed(1) + " days";
+  }
+  const stages = [
+    { label:"Application → Under Review", key:"appToReview",   color:"#B89AE8" },
+    { label:"Under Review → Interview",   key:"reviewToIntv",  color:"#6AB4E8" },
+    { label:"Interview → Approved",       key:"intvToApprove", color:"#7EC87E" },
+    { label:"Application → Hired",        key:"appToHired",    color:GOLD      },
+  ];
+  const th = { padding:"9px 14px", textAlign:"left", fontFamily:font, fontWeight:500, fontSize:10, letterSpacing:"0.1em", textTransform:"uppercase", color:TEXT_MUTED, borderBottom:"1px solid "+BORDER, whiteSpace:"nowrap" };
+  return (
+    <div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10, marginBottom:"1.5rem" }}>
+        {stages.map(s => (
+          <div key={s.key} style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:4, padding:"14px 18px" }}>
+            <div style={{ fontSize:10, fontFamily:font, fontWeight:500, letterSpacing:"0.08em", textTransform:"uppercase", color:TEXT_MUTED, marginBottom:6, lineHeight:1.4 }}>{s.label}</div>
+            <div style={{ fontSize:26, fontFamily:serif, color:s.color }}>{avg(s.key)}</div>
+            <div style={{ fontSize:10, fontFamily:font, color:TEXT_MUTED, marginTop:2 }}>{rows.filter(r => r[s.key] !== null && r[s.key] !== undefined).length} applicants</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ border:"1px solid "+BORDER, borderRadius:6, overflow:"hidden" }}>
+        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12, tableLayout:"fixed" }}>
+          <colgroup><col style={{ width:"18%" }}/><col style={{ width:"14%" }}/><col style={{ width:"17%" }}/><col style={{ width:"17%" }}/><col style={{ width:"17%" }}/><col style={{ width:"17%" }}/></colgroup>
+          <thead>
+            <tr style={{ background:DARK_CARD2 }}>
+              <th style={th}>Applicant</th><th style={th}>Stage</th>
+              <th style={{ ...th, color:"#B89AE8" }}>→ Under Review</th>
+              <th style={{ ...th, color:"#6AB4E8" }}>→ Interview</th>
+              <th style={{ ...th, color:"#7EC87E" }}>→ Approved</th>
+              <th style={{ ...th, color:GOLD }}>Total Cycle</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={r.id} style={{ borderBottom: i < rows.length - 1 ? "1px solid "+BORDER : "none" }}>
+                <td style={{ padding:"10px 14px" }}>
+                  <div style={{ fontSize:13, fontFamily:serif, color:TEXT_PRIMARY }}>{r.firstName} {r.lastName}</div>
+                  <div style={{ fontSize:10, fontFamily:font, color:TEXT_MUTED, marginTop:1 }}>Applied {r.joined}</div>
+                </td>
+                <td style={{ padding:"10px 14px" }}><ReviewTag status={r.reviewStatus || "Pending"} /></td>
+                {["appToReview","reviewToIntv","intvToApprove","appToHired"].map(key => (
+                  <td key={key} style={{ padding:"10px 14px", fontFamily:font, fontSize:12, color: r[key] !== null && r[key] !== undefined ? TEXT_SECONDARY : TEXT_MUTED }}>
+                    {r[key] !== null && r[key] !== undefined ? r[key] + "d" : "—"}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ marginTop:"0.75rem", fontSize:11, color:TEXT_MUTED, fontFamily:font }}>* "d" = days from status change timestamps.</div>
+    </div>
+  );
+}
+
+// ─── Send Log Tab ─────────────────────────────────────────────────────────────
+function SendLogTab() {
+  const [logData,      setLogData]      = useState(MOCK_SEND_LOG);
+  const [logType,      setLogType]      = useState("All emails");
+  const [statusFilter, setStatusFilter] = useState("All statuses");
+  const [search,       setSearch]       = useState("");
+  const [selectedIds,  setSelectedIds]  = useState(new Set());
+
+  const filtered = logData.filter(r => {
+    const mType = logType === "All emails" || (logType === "Subscriber emails" && r.logType === "subscriber") || (logType === "Advisor emails" && r.logType === "advisor");
+    const mStt  = statusFilter === "All statuses" || (statusFilter === "Delivered" && r.status === "delivered" && !r.unsubscribed) || (statusFilter === "Bounced" && r.status === "bounced") || (statusFilter === "Unsubscribed" && r.unsubscribed);
+    const q = search.toLowerCase();
+    const mSrch = !q || r.to.toLowerCase().includes(q) || r.firstName.toLowerCase().includes(q) || r.lastName.toLowerCase().includes(q);
+    return mType && mStt && mSrch;
+  });
+
+  const allChecked  = filtered.length > 0 && filtered.every(r => selectedIds.has(r.id));
+  const someChecked = filtered.some(r => selectedIds.has(r.id));
+  function toggleRow(id) { setSelectedIds(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; }); }
+  function toggleAll() {
+    if (allChecked) setSelectedIds(p => { const n = new Set(p); filtered.forEach(r => n.delete(r.id)); return n; });
+    else            setSelectedIds(p => { const n = new Set(p); filtered.forEach(r => n.add(r.id));    return n; });
+  }
+  function toggleUnsub(id) { setLogData(p => p.map(r => r.id === id ? Object.assign({}, r, { unsubscribed: !r.unsubscribed }) : r)); }
+  function downloadCSV() {
+    const rows = (selectedIds.size > 0 ? filtered.filter(r => selectedIds.has(r.id)) : filtered)
+      .map(r => [r.firstName, r.lastName, r.to, r.template, r.routedTo, r.status, r.opened ? "Yes" : "No", r.clicked ? "Yes" : "No", r.unsubscribed ? "Yes" : "No", r.logType, r.time]);
+    const csv = [["First","Last","Email","Template","Routed To","Status","Opened","Clicked","Unsubscribed","Type","Sent"], ...rows].map(row => row.map(v => '"' + v + '"').join(",")).join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type:"text/csv" }));
+    a.download = "sidekix-send-log.csv"; a.click();
+  }
+
+  const subLogs = logData.filter(r => r.logType === "subscriber");
+  const advLogs = logData.filter(r => r.logType === "advisor");
+  const th = { padding:"10px 12px", textAlign:"left", fontFamily:font, fontWeight:500, fontSize:10, letterSpacing:"0.1em", textTransform:"uppercase", color:TEXT_MUTED, borderBottom:"1px solid "+BORDER };
+
+  return (
+    <div>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1rem", marginBottom:"1.5rem" }}>
+        {[{ title:"Subscriber Emails", logs:subLogs, from:"joinus@sidekixhq.com" }, { title:"Advisor Emails", logs:advLogs, from:"Advisors@sidekixhq.com" }].map(({ title, logs, from }) => (
+          <div key={title} style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:6, padding:"1rem" }}>
+            <div style={{ fontSize:11, fontFamily:font, fontWeight:500, letterSpacing:"0.1em", textTransform:"uppercase", color:TEXT_MUTED, marginBottom:"0.75rem" }}>
+              {title} <span style={{ fontWeight:400, textTransform:"none" }}>· {from}</span>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8 }}>
+              {[["Sent", logs.length], ["Delivered", logs.filter(r => r.status === "delivered").length], ["Opened", logs.filter(r => r.opened).length], ["Unsub'd", logs.filter(r => r.unsubscribed).length]].map(([label, val]) => (
+                <div key={label}>
+                  <div style={{ fontSize:10, fontFamily:font, color:TEXT_MUTED, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:3 }}>{label}</div>
+                  <div style={{ fontSize:22, fontFamily:serif, color:TEXT_PRIMARY }}>{val}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display:"flex", gap:8, marginBottom:"0.75rem", alignItems:"center", flexWrap:"wrap" }}>
+        <input type="text" placeholder="Search name or email…" value={search} onChange={e => setSearch(e.target.value)} style={inp({ flex:1, minWidth:160 })} />
+        <select value={logType}      onChange={e => setLogType(e.target.value)}      style={inp({ width:"auto", cursor:"pointer" })}>{LOG_TYPES.map(o => <option key={o} value={o}>{o}</option>)}</select>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={inp({ width:"auto", cursor:"pointer" })}>{LOG_STATUSES.map(o => <option key={o} value={o}>{o}</option>)}</select>
+        <button onClick={downloadCSV} style={{ padding:"9px 16px", fontSize:11, fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase", borderRadius:4, border:"none", background:GOLD, color:"#1C1A14", cursor:"pointer", fontFamily:font, whiteSpace:"nowrap" }}>
+          ↓ Export {selectedIds.size > 0 ? selectedIds.size + " selected" : "all " + filtered.length}
+        </button>
+      </div>
+      {selectedIds.size > 0 && (
+        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:"0.75rem", padding:"8px 12px", background:"rgba(201,169,110,0.08)", border:"1px solid rgba(201,169,110,0.2)", borderRadius:4, fontSize:12, color:GOLD_LIGHT, fontFamily:font }}>
+          <span>{selectedIds.size} selected</span>
+          <button onClick={() => setSelectedIds(new Set())} style={{ marginLeft:"auto", background:"none", border:"none", color:TEXT_MUTED, cursor:"pointer", fontSize:11, fontFamily:font }}>Clear</button>
+        </div>
+      )}
+      <div style={{ border:"1px solid "+BORDER, borderRadius:6, overflow:"hidden" }}>
+        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12, tableLayout:"fixed" }}>
+          <colgroup>
+            <col style={{ width:"3%" }}/><col style={{ width:"12%" }}/><col style={{ width:"16%" }}/>
+            <col style={{ width:"15%" }}/><col style={{ width:"15%" }}/><col style={{ width:"9%" }}/>
+            <col style={{ width:"7%" }}/><col style={{ width:"7%" }}/><col style={{ width:"8%" }}/><col style={{ width:"10%" }}/>
+          </colgroup>
+          <thead>
+            <tr style={{ background:DARK_CARD2 }}>
+              <th style={th}><input type="checkbox" checked={allChecked} ref={el => { if (el) el.indeterminate = someChecked && !allChecked; }} onChange={toggleAll} style={{ width:14, height:14, accentColor:GOLD, cursor:"pointer" }} /></th>
+              {["Name","Email","Template","Routed To","Status","Opened","Clicked","Unsub","Sent"].map(h => <th key={h} style={th}>{h}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0
+              ? <tr><td colSpan={10} style={{ padding:"2rem", textAlign:"center", color:TEXT_MUTED, fontFamily:font }}>No results</td></tr>
+              : filtered.map((r, i) => {
+                const isSel = selectedIds.has(r.id);
+                return (
+                  <tr key={r.id} onClick={() => toggleRow(r.id)} style={{ borderBottom: i < filtered.length - 1 ? "1px solid "+BORDER : "none", background: r.unsubscribed ? "rgba(220,100,100,0.04)" : isSel ? "rgba(201,169,110,0.05)" : "transparent", cursor:"pointer", opacity: r.unsubscribed ? 0.75 : 1 }}>
+                    <td style={{ padding:"10px 12px" }}><input type="checkbox" checked={isSel} onChange={() => toggleRow(r.id)} onClick={e => e.stopPropagation()} style={{ width:14, height:14, accentColor:GOLD, cursor:"pointer" }} /></td>
+                    <td style={{ padding:"10px 12px", color:TEXT_PRIMARY, fontFamily:font, fontSize:12, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.firstName} {r.lastName}</td>
+                    <td style={{ padding:"10px 12px", color:TEXT_SECONDARY, fontFamily:mono, fontSize:11, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.to}</td>
+                    <td style={{ padding:"10px 12px", color:TEXT_SECONDARY, fontFamily:font, fontSize:11, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.template}</td>
+                    <td style={{ padding:"10px 12px", color:TEXT_MUTED, fontFamily:mono, fontSize:10, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.routedTo}</td>
+                    <td style={{ padding:"10px 12px" }}>
+                      <span style={{ fontSize:10, padding:"3px 7px", borderRadius:3, fontFamily:font, fontWeight:500, textTransform:"uppercase", background: r.status === "delivered" ? "rgba(201,169,110,0.1)" : "rgba(220,100,100,0.1)", color: r.status === "delivered" ? GOLD : "#E07070", border:"1px solid " + (r.status === "delivered" ? "rgba(201,169,110,0.2)" : "rgba(220,100,100,0.2)") }}>
+                        {r.status}
+                      </span>
+                    </td>
+                    <td style={{ padding:"10px 12px", textAlign:"center", fontSize:11, color: r.opened ? TEXT_SECONDARY : TEXT_MUTED }}>
+                      {r.status === "bounced" ? "—" : r.opened ? "👁" : "—"}
+                    </td>
+                    <td style={{ padding:"10px 12px", textAlign:"center", fontSize:11, color: r.clicked ? TEXT_SECONDARY : TEXT_MUTED }}>
+                      {r.status === "bounced" || !r.opened ? "—" : r.clicked ? "🔗" : "—"}
+                    </td>
+                    <td style={{ padding:"10px 12px", textAlign:"center" }} onClick={e => e.stopPropagation()}>
+                      <button onClick={() => toggleUnsub(r.id)} style={{ fontSize:10, padding:"2px 7px", borderRadius:3, border:"1px solid " + (r.unsubscribed ? "rgba(220,100,100,0.3)" : BORDER), background: r.unsubscribed ? "rgba(220,100,100,0.12)" : "transparent", color: r.unsubscribed ? "#E07070" : TEXT_MUTED, cursor:"pointer", fontFamily:font, textTransform:"uppercase" }}>
+                        {r.unsubscribed ? "Unsub'd" : "—"}
+                      </button>
+                    </td>
+                    <td style={{ padding:"10px 12px", color:TEXT_MUTED, fontFamily:font, fontSize:11 }}>{r.time}</td>
+                  </tr>
+                );
+              })
+            }
+          </tbody>
+        </table>
+      </div>
+      <div style={{ marginTop:"0.75rem", fontSize:11, color:TEXT_MUTED, fontFamily:font }}>
+        {filtered.length} of {logData.length} records · 👁 opened · 🔗 clicked
+      </div>
+    </div>
+  );
+}
+
+// ─── Settings Block — top-level, never nested ─────────────────────────────────
+function SettingsBlock({ title, from, state, setState, saved, setSaved }) {
+  const fields = [
+    { key:"apiKey",    label:"SendGrid API Key",        placeholder:"SG.xxxxxxxxxx",                                      type:"password" },
+    { key:"fromEmail", label:"From Email",              placeholder:from,                                                 type:"email"    },
+    { key:"fromName",  label:"From Name",               placeholder:"SideKix",                                            type:"text"     },
+    { key:"replyTo",   label:"Reply-To Address",        placeholder:from,                                                 type:"email"    },
+    { key:"logoUrl",   label:"Logo URL (HTML emails)",  placeholder:"https://sidekixhq.com/wp-content/uploads/logo.png", type:"text"     },
+  ];
+  return (
+    <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:6, padding:"1.25rem", marginBottom:"1rem" }}>
+      <div style={{ fontSize:18, fontFamily:serif, color:TEXT_PRIMARY, marginBottom:"0.25rem" }}>{title}</div>
+      <div style={{ fontSize:11, fontFamily:font, color:TEXT_MUTED, marginBottom:"1.25rem", paddingBottom:"0.75rem", borderBottom:"1px solid "+BORDER }}>
+        Sends from <span style={{ color:GOLD_LIGHT }}>{from}</span>
+      </div>
+      {fields.map(f => (
+        <div key={f.key} style={{ marginBottom:"1rem" }}>
+          <label style={lbl}>{f.label}</label>
+          <input type={f.type} value={state[f.key]} onChange={e => setState(s => Object.assign({}, s, { [f.key]: e.target.value }))} placeholder={f.placeholder} style={inp({ fontFamily: f.key === "apiKey" ? mono : font })} />
+        </div>
+      ))}
+      <button onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 2500); }}
+        style={{ fontSize:11, padding:"9px 20px", borderRadius:4, border:"none", background: saved ? "#7A9A6E" : GOLD, color:"#1C1A14", cursor:"pointer", fontFamily:font, fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase", transition:"background 0.3s" }}>
+        {saved ? "✓ Saved" : "Save Settings"}
+      </button>
+    </div>
+  );
+}
+
+function SettingsTab() {
+  const [sub, setSub] = useState({ apiKey:"", fromEmail:"joinus@sidekixhq.com",   fromName:"SideKix",          replyTo:"joinus@sidekixhq.com",   logoUrl:"" });
+  const [adv, setAdv] = useState({ apiKey:"", fromEmail:"Advisors@sidekixhq.com", fromName:"SideKix Advisors", replyTo:"Advisors@sidekixhq.com", logoUrl:"" });
+  const [savedSub, setSavedSub] = useState(false);
+  const [savedAdv, setSavedAdv] = useState(false);
+  return (
+    <div style={{ maxWidth:520 }}>
+      <SettingsBlock title="Subscriber Emails" from="joinus@sidekixhq.com"   state={sub} setState={setSub} saved={savedSub} setSaved={setSavedSub} />
+      <SettingsBlock title="Advisor Emails"    from="Advisors@sidekixhq.com" state={adv} setState={setAdv} saved={savedAdv} setSaved={setSavedAdv} />
+      <div style={{ padding:"1rem 1.25rem", border:"1px solid "+BORDER, borderRadius:4 }}>
+        <div style={{ fontSize:11, fontFamily:font, fontWeight:500, letterSpacing:"0.1em", textTransform:"uppercase", color:TEXT_MUTED, marginBottom:10 }}>How to get your SendGrid API key</div>
+        <ol style={{ margin:0, paddingLeft:"1.1rem", fontSize:12, color:TEXT_SECONDARY, lineHeight:2.2, fontFamily:font }}>
+          <li>Log in at <a href="https://sendgrid.com" target="_blank" rel="noopener noreferrer" style={{ color:GOLD_LIGHT }}>sendgrid.com</a></li>
+          <li>Settings → API Keys → Create API Key</li>
+          <li>Choose "Full Access" or "Restricted" with Mail Send enabled</li>
+          <li>Copy and paste it above</li>
+          <li>Verify both sender addresses under Settings → Sender Authentication</li>
+        </ol>
+      </div>
+    </div>
+  );
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+function Dashboard({ currentUser, onSignOut }) {
+  const [tab,     setTab]    = useState("templates");
+  const [logoUrl] = useState("");
+  const TABS = [
+    { id:"templates",   label:"Templates"   },
+    { id:"subscribers", label:"Subscribers" },
+    { id:"pipeline",    label:"Pipeline"    },
+    { id:"sendlog",     label:"Send Log"    },
+    { id:"settings",    label:"Settings"    },
+  ];
+  return (
+    <div style={{ fontFamily:serif, background:DARK_BG, minHeight:"100vh", padding:"2rem 1.75rem", color:TEXT_PRIMARY }}>
+      <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"2rem" }}>
+        <div>
+          <div style={{ fontFamily:serif, fontSize:20, letterSpacing:"0.12em", color:TEXT_PRIMARY, marginBottom:"0.2rem" }}>SideKix<span style={{ color:GOLD }}>·</span></div>
+          <div style={{ fontFamily:font, fontSize:11, color:TEXT_MUTED, letterSpacing:"0.08em", textTransform:"uppercase" }}>Team Portal</div>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <span style={{ fontSize:11, fontFamily:mono, color:TEXT_MUTED }}>{currentUser}</span>
+          <button onClick={onSignOut} style={{ fontSize:10, padding:"5px 12px", borderRadius:3, border:"1px solid "+BORDER, background:"transparent", color:TEXT_MUTED, cursor:"pointer", fontFamily:font, textTransform:"uppercase", letterSpacing:"0.06em" }}>Sign out</button>
+        </div>
+      </div>
+      <div style={{ display:"flex", borderBottom:"1px solid "+BORDER, marginBottom:"1.75rem" }}>
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} style={{ background:"none", border:"none", borderBottom: tab === t.id ? "1px solid "+GOLD : "1px solid transparent", padding:"8px 22px", fontSize:11, fontWeight:500, letterSpacing:"0.1em", textTransform:"uppercase", color: tab === t.id ? GOLD : TEXT_MUTED, cursor:"pointer", marginBottom:-1, fontFamily:font }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {tab === "templates"   && <TemplatesTab logoUrl={logoUrl} />}
+      {tab === "subscribers" && <SubscribersTab currentUser={currentUser} />}
+      {tab === "pipeline"    && <PipelineTab />}
+      {tab === "sendlog"     && <SendLogTab />}
+      {tab === "settings"    && <SettingsTab />}
+    </div>
+  );
+}
+
+// ─── App root — hooks before conditional return ───────────────────────────────
+function App() {
+  const [currentUser, setCurrentUser] = useState(null);
+  if (!currentUser) return <LoginGate onAccess={setCurrentUser} />;
+  return <Dashboard currentUser={currentUser} onSignOut={() => setCurrentUser(null)} />;
+}
+
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+  </script>
+</body>
+</html>
