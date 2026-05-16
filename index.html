@@ -14,7 +14,6 @@
     ::-webkit-scrollbar-track { background: #1C1A14; }
     ::-webkit-scrollbar-thumb { background: #3A3528; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #6B6454; }
-    tr:hover .row-actions { opacity: 1 !important; }
   </style>
 </head>
 <body>
@@ -830,6 +829,49 @@ function SidePanel({ person, onClose, onUpdate }) {
   );
 }
 
+
+// ─── Row Menu (three-dot) ─────────────────────────────────────────────────────
+function RowMenu({ archived, onArchive, onRestore, onDelete }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    function handler(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+  return (
+    <div ref={ref} style={{ position:"relative" }} onClick={e => e.stopPropagation()}>
+      <button onClick={() => setOpen(o => !o)} style={{ background:"none", border:"none", color:TEXT_MUTED, cursor:"pointer", fontSize:16, padding:"2px 6px", borderRadius:3, lineHeight:1 }}>
+        {"⋯"}
+      </button>
+      {open && (
+        <div style={{ position:"absolute", right:0, top:"calc(100% + 4px)", background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:4, zIndex:200, boxShadow:"0 4px 16px rgba(0,0,0,0.5)", overflow:"hidden", minWidth:130 }}>
+          {archived
+            ? <div onClick={e => { setOpen(false); onRestore(e); }}
+                style={{ padding:"9px 14px", fontSize:12, fontFamily:font, color:TEXT_SECONDARY, cursor:"pointer", borderBottom:"1px solid "+BORDER }}
+                onMouseEnter={e => e.currentTarget.style.background=DARK_CARD2}
+                onMouseLeave={e => e.currentTarget.style.background="transparent"}>
+                Restore
+              </div>
+            : <div onClick={e => { setOpen(false); onArchive(e); }}
+                style={{ padding:"9px 14px", fontSize:12, fontFamily:font, color:TEXT_SECONDARY, cursor:"pointer", borderBottom:"1px solid "+BORDER }}
+                onMouseEnter={e => e.currentTarget.style.background=DARK_CARD2}
+                onMouseLeave={e => e.currentTarget.style.background="transparent"}>
+                Archive
+              </div>
+          }
+          <div onClick={e => { setOpen(false); onDelete(e); }}
+            style={{ padding:"9px 14px", fontSize:12, fontFamily:font, color:"#E07070", cursor:"pointer" }}
+            onMouseEnter={e => e.currentTarget.style.background="rgba(220,100,100,0.08)"}
+            onMouseLeave={e => e.currentTarget.style.background="transparent"}>
+            Delete
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Subscribers Tab ──────────────────────────────────────────────────────────
 function SubscribersTab({ currentUser }) {
   const [subs,         setSubs]         = useState(MOCK_SUBSCRIBERS);
@@ -990,17 +1032,14 @@ function SubscribersTab({ currentUser }) {
                             : <span style={{ color:TEXT_MUTED, fontSize:12 }}>—</span>}
                         </td>
                         <td style={{ padding:"10px 14px", color:TEXT_MUTED, fontFamily:font, fontSize:11, whiteSpace:"nowrap" }}>
-                          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:6 }}>
                             <span>{s.joined}</span>
-                            <div style={{ display:"flex", gap:4, marginLeft:4, opacity:0 }} className="row-actions"
-                              onMouseEnter={e => e.currentTarget.style.opacity=1}
-                              onMouseLeave={e => e.currentTarget.style.opacity=0}>
-                              {s.archived
-                                ? <button onClick={e => { e.stopPropagation(); restorePerson(s.id); }} title="Restore" style={{ fontSize:10, padding:"2px 7px", borderRadius:3, border:"1px solid "+BORDER, background:"transparent", color:TEXT_SECONDARY, cursor:"pointer", fontFamily:font }}>Restore</button>
-                                : <button onClick={e => { e.stopPropagation(); archivePerson(s.id); }} title="Archive" style={{ fontSize:10, padding:"2px 7px", borderRadius:3, border:"1px solid "+BORDER, background:"transparent", color:TEXT_MUTED, cursor:"pointer", fontFamily:font }}>Archive</button>
-                              }
-                              <button onClick={e => { e.stopPropagation(); if(window.confirm("Delete " + s.firstName + " " + s.lastName + "? This cannot be undone.")) deletePerson(s.id); }} title="Delete" style={{ fontSize:10, padding:"2px 7px", borderRadius:3, border:"1px solid rgba(220,100,100,0.3)", background:"rgba(220,100,100,0.08)", color:"#E07070", cursor:"pointer", fontFamily:font }}>Delete</button>
-                            </div>
+                            <RowMenu
+                              archived={s.archived}
+                              onArchive={e => { e.stopPropagation(); archivePerson(s.id); }}
+                              onRestore={e => { e.stopPropagation(); restorePerson(s.id); }}
+                              onDelete={e => { e.stopPropagation(); if(window.confirm("Delete " + s.firstName + " " + s.lastName + "? This cannot be undone.")) deletePerson(s.id); }}
+                            />
                           </div>
                         </td>
                       </tr>
