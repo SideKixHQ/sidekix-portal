@@ -167,35 +167,162 @@ const INITIAL_TEMPLATES = {
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 const MOCK_SEND_LOG = [
-  { id:1,  firstName:"Sarah",  lastName:"Mitchell", to:"sarah@example.com",  template:"Subscriber Welcome",   routedTo:"joinus@sidekixhq.com",   status:"delivered", opened:true,  clicked:true,  time:"2 min ago",  unsubscribed:false, logType:"subscriber" },
-  { id:2,  firstName:"Mike",   lastName:"Acevedo",  to:"mike@acme.co",       template:"Application Received", routedTo:"Advisors@sidekixhq.com",  status:"delivered", opened:true,  clicked:false, time:"14 min ago", unsubscribed:false, logType:"advisor"    },
-  { id:3,  firstName:"Jen",    lastName:"Torres",   to:"jen@startup.io",     template:"Contact Form",          routedTo:"joinus@sidekixhq.com",   status:"delivered", opened:false, clicked:false, time:"1 hr ago",   unsubscribed:false, logType:"subscriber" },
-  { id:4,  firstName:"Carlos", lastName:"Reyes",    to:"carlos@example.com", template:"Subscriber Welcome",   routedTo:"joinus@sidekixhq.com",   status:"bounced",   opened:false, clicked:false, time:"3 hr ago",   unsubscribed:false, logType:"subscriber" },
-  { id:5,  firstName:"Priya",  lastName:"Sharma",   to:"priya@techco.com",   template:"Follow-up Day 3",      routedTo:"joinus@sidekixhq.com",   status:"delivered", opened:true,  clicked:true,  time:"5 hr ago",   unsubscribed:true,  logType:"subscriber" },
-  { id:6,  firstName:"Dan",    lastName:"Kovacs",   to:"dan@venture.co",     template:"Interview Invite",      routedTo:"Advisors@sidekixhq.com",  status:"delivered", opened:true,  clicked:false, time:"7 hr ago",   unsubscribed:false, logType:"advisor"    },
-  { id:7,  firstName:"Nina",   lastName:"Okafor",   to:"nina@agency.com",    template:"Contact Form",          routedTo:"joinus@sidekixhq.com",   status:"delivered", opened:true,  clicked:false, time:"9 hr ago",   unsubscribed:false, logType:"subscriber" },
-  { id:8,  firstName:"Leo",    lastName:"Park",     to:"leo@designco.com",   template:"Subscriber Welcome",   routedTo:"joinus@sidekixhq.com",   status:"delivered", opened:true,  clicked:true,  time:"11 hr ago",  unsubscribed:false, logType:"subscriber" },
-  { id:9,  firstName:"Amara",  lastName:"Diallo",   to:"amara@consult.io",   template:"Application Received", routedTo:"Advisors@sidekixhq.com",  status:"delivered", opened:false, clicked:false, time:"1 day ago",  unsubscribed:false, logType:"advisor"    },
-  { id:10, firstName:"Marcus", lastName:"Ellis",    to:"marcus@fundco.io",   template:"Rejection Email",       routedTo:"Advisors@sidekixhq.com",  status:"delivered", opened:true,  clicked:false, time:"2 days ago", unsubscribed:false, logType:"advisor"    },
+  { id:1,  firstName:"Marcus",  lastName:"Ellis",   to:"marcus@fundco.io",     template:"Application Received", subject:"We received your SideKix application, Marcus!",       status:"Delivered", opened:true,  clicked:true,  sentAt:"May 4, 2026 · 9:02 AM",  unsubscribed:false },
+  { id:2,  firstName:"Marcus",  lastName:"Ellis",   to:"marcus@fundco.io",     template:"Interview",            subject:"Let's connect — SideKix Advisor Interview",           status:"Delivered", opened:true,  clicked:false, sentAt:"May 7, 2026 · 11:15 AM", unsubscribed:false },
+  { id:3,  firstName:"Marcus",  lastName:"Ellis",   to:"marcus@fundco.io",     template:"Advisor Offer",        subject:"Congratulations Marcus — you've been selected",       status:"Delivered", opened:true,  clicked:true,  sentAt:"May 10, 2026 · 2:30 PM", unsubscribed:false },
+  { id:4,  firstName:"Amara",   lastName:"Diallo",  to:"amara@consult.io",     template:"Application Received", subject:"We received your SideKix application, Amara!",        status:"Delivered", opened:true,  clicked:false, sentAt:"May 7, 2026 · 9:05 AM",  unsubscribed:false },
+  { id:5,  firstName:"Amara",   lastName:"Diallo",  to:"amara@consult.io",     template:"Interview",            subject:"Let's connect — SideKix Advisor Interview",           status:"Delivered", opened:false, clicked:false, sentAt:"May 11, 2026 · 10:00 AM",unsubscribed:false },
+  { id:6,  firstName:"Dan",     lastName:"Kovacs",  to:"dan@venture.co",       template:"Application Received", subject:"We received your SideKix application, Dan!",          status:"Delivered", opened:true,  clicked:false, sentAt:"May 10, 2026 · 9:01 AM", unsubscribed:false },
+  { id:7,  firstName:"Priya",   lastName:"Nair",    to:"priya@growthlab.co",   template:"Application Received", subject:"We received your SideKix application, Priya!",        status:"Delivered", opened:true,  clicked:true,  sentAt:"May 12, 2026 · 9:00 AM", unsubscribed:false },
+  { id:8,  firstName:"Priya",   lastName:"Nair",    to:"priya@growthlab.co",   template:"Interview",            subject:"Let's connect — SideKix Advisor Interview",           status:"Delivered", opened:true,  clicked:true,  sentAt:"May 14, 2026 · 1:00 PM", unsubscribed:false },
+  { id:9,  firstName:"Priya",   lastName:"Nair",    to:"priya@growthlab.co",   template:"Advisor Offer",        subject:"Congratulations Priya — you've been selected",        status:"Delivered", opened:true,  clicked:true,  sentAt:"May 16, 2026 · 9:30 AM", unsubscribed:false },
+  { id:10, firstName:"Taylor",  lastName:"Brooks",  to:"taylor@example.com",   template:"Waitlist Confirmation",subject:"You're on the SideKix waitlist, Taylor!",             status:"Delivered", opened:true,  clicked:false, sentAt:"May 15, 2026 · 3:44 PM", unsubscribed:false },
+  { id:11, firstName:"Taylor",  lastName:"Brooks",  to:"taylor@example.com",   template:"Follow-up · Day 3",   subject:"Still thinking about SideKix?",                       status:"Delivered", opened:false, clicked:false, sentAt:"May 18, 2026 · 9:00 AM", unsubscribed:false },
+  { id:12, firstName:"Zara",    lastName:"Collins", to:"zara@brandco.com",     template:"Subscriber Welcome",   subject:"Welcome to SideKix, Zara!",                           status:"Delivered", opened:true,  clicked:true,  sentAt:"May 5, 2026 · 4:12 PM",  unsubscribed:false },
+  { id:13, firstName:"Zara",    lastName:"Collins", to:"zara@brandco.com",     template:"Follow-up · Day 3",   subject:"Still thinking about SideKix?",                       status:"Delivered", opened:true,  clicked:false, sentAt:"May 8, 2026 · 9:00 AM",  unsubscribed:false },
+  { id:14, firstName:"Zara",    lastName:"Collins", to:"zara@brandco.com",     template:"Follow-up · Day 7",   subject:"A quick note from SideKix",                           status:"Delivered", opened:true,  clicked:false, sentAt:"May 12, 2026 · 9:00 AM", unsubscribed:false },
+  { id:15, firstName:"Tom",     lastName:"Walsh",   to:"tom@media.co",         template:"Contact Form",         subject:"Got your message — we'll be in touch soon",           status:"Bounced",   opened:false, clicked:false, sentAt:"May 6, 2026 · 11:22 AM", unsubscribed:false },
+  { id:16, firstName:"Nina",    lastName:"Okafor",  to:"nina@agency.co",       template:"Contact Form",         subject:"Got your message — we'll be in touch soon",           status:"Delivered", opened:true,  clicked:false, sentAt:"May 9, 2026 · 2:05 PM",  unsubscribed:false },
+  { id:17, firstName:"Leo",     lastName:"Park",    to:"leo@designco.com",     template:"Subscriber Welcome",   subject:"Welcome to SideKix, Leo!",                            status:"Delivered", opened:true,  clicked:false, sentAt:"May 8, 2026 · 4:30 PM",  unsubscribed:false },
+  { id:18, firstName:"Leo",     lastName:"Park",    to:"leo@designco.com",     template:"Follow-up · Day 3",   subject:"Still thinking about SideKix?",                       status:"Delivered", opened:true,  clicked:false, sentAt:"May 11, 2026 · 9:00 AM", unsubscribed:false },
+  { id:19, firstName:"Leo",     lastName:"Park",    to:"leo@designco.com",     template:"Follow-up · Day 7",   subject:"A quick note from SideKix",                           status:"Delivered", opened:false, clicked:false, sentAt:"May 15, 2026 · 9:00 AM", unsubscribed:true  },
 ];
 
 const MOCK_SUBSCRIBERS = [
-  { id:1,  firstName:"Marcus",  lastName:"Ellis",   email:"marcus@fundco.io",      source:"Application", status:"Active",       reviewStatus:"Approved", archived:false, tags:["Advisor Applicant"],  joined:"May 4, 2026",  assignedTo:["james"], notes:"",
-    statusHistory:[{status:"Pending",date:"2026-05-04"},{status:"Under Review",date:"2026-05-05"},{status:"Interview",date:"2026-05-07"},{status:"Approved",date:"2026-05-10"}],
-    city:"New York", state:"NY", zip:"10001", phone:"212-555-0188", website:"marcusellis.io", social:"twitter.com/marcusellis", linkedin:"linkedin.com/in/marcusellis",
-    background:["Founder (built or exited a business)","Coach or Consultant"], yearsOwner:"15+ years", priorAdvisor:"Yes", businessTypes:["Technology / SaaS","Product-based","Service-based"],
-    expertise:["Funding & Investment","Finance & Budgeting","Product Development","Operations & Scaling"], strengths:["Business Model Design","Customer Discovery","Lean Thinking","Prioritization"],
-    challenge:"Raised a $2.5M seed round during a down market when every investor said no for 9 months. I rewrote the deck 11 times.", whySidekix:"Fundraising is one of the most opaque parts of building a company. I want to change that.",
-    languages:["English"], resumeUrl:"", photo:"" },
-  { id:2,  firstName:"Taylor",  lastName:"Brooks",  email:"taylor@example.com",    source:"Waitlist",    status:"Active",       reviewStatus:null,       archived:false, tags:["Waitlist"],           joined:"May 15, 2026", assignedTo:[], notes:"", statusHistory:[], city:"", state:"", zip:"", phone:"", website:"", social:"", linkedin:"", background:[], yearsOwner:"", priorAdvisor:"", businessTypes:[], expertise:[], strengths:[], challenge:"", whySidekix:"", languages:[], resumeUrl:"", photo:"" },
-  { id:3,  firstName:"Zara",    lastName:"Collins", email:"zara@brandco.com",      source:"Subscriber",  status:"Active",       reviewStatus:null,       archived:false, tags:["Newsletter"],         joined:"May 5, 2026",  assignedTo:[], notes:"", statusHistory:[], city:"", state:"", zip:"", phone:"", website:"", social:"", linkedin:"", background:[], yearsOwner:"", priorAdvisor:"", businessTypes:[], expertise:[], strengths:[], challenge:"", whySidekix:"", languages:[], resumeUrl:"", photo:"" },
-  { id:4,  firstName:"Dan",     lastName:"Kovacs",  email:"dan@venture.co",        source:"Application", status:"Active",       reviewStatus:"Approved", archived:false, tags:["Advisor Applicant"],  joined:"May 10, 2026", assignedTo:["james"], notes:"",
-    statusHistory:[{status:"Pending",date:"2026-05-10"},{status:"Under Review",date:"2026-05-11"},{status:"Approved",date:"2026-05-13"}],
-    city:"Austin", state:"TX", zip:"78701", phone:"512-555-0199", website:"dankovacs.com", social:"", linkedin:"linkedin.com/in/dankovacs",
-    background:["Founder (built or exited a business)"], yearsOwner:"10-15 years", priorAdvisor:"No", businessTypes:["Technology / SaaS"],
-    expertise:["Go-to-Market Strategy","Sales & Revenue"], strengths:["Pipeline Building","Outbound Sales","CRM Strategy"],
-    challenge:"Took a B2B SaaS from $0 to $3M ARR in 18 months with a team of 4.", whySidekix:"Entrepreneurs need real operators, not just coaches.",
-    languages:["English"], resumeUrl:"", photo:"" },
+  {
+    id:1, firstName:"Marcus", lastName:"Ellis", email:"marcus@fundco.io",
+    source:"Application", status:"Active", reviewStatus:"Approved", archived:false,
+    tags:["Advisor Applicant","Fundraising","SaaS"], joined:"May 4, 2026",
+    assignedTo:["james@sidekixhq.com","sarah@sidekixhq.com"], notes:"Strong fundraising background. Former YC founder. Priority candidate.",
+    statusHistory:[
+      {status:"Pending",date:"2026-05-04"},{status:"Under Review",date:"2026-05-05"},
+      {status:"Interview",date:"2026-05-07"},{status:"Approved",date:"2026-05-10"}
+    ],
+    city:"New York", state:"NY", zip:"10001", phone:"212-555-0188",
+    website:"marcusellis.io", social:"twitter.com/marcusellis", linkedin:"linkedin.com/in/marcusellis",
+    background:["Founder (built or exited a business)","Coach or Consultant"],
+    yearsOwner:"15+ years", priorAdvisor:"Yes",
+    businessTypes:["Technology / SaaS","Product-based","Service-based"],
+    expertise:["Funding & Investment","Finance & Budgeting","Product Development","Operations & Scaling"],
+    strengths:["Business Model Design","Customer Discovery","Lean Thinking","Prioritization"],
+    challenge:"Raised a $2.5M seed round during a down market when every investor said no for 9 months. I rewrote the deck 11 times.",
+    whySidekix:"Fundraising is one of the most opaque parts of building a company. I want to change that.",
+    whyAdvisor:"I've been on both sides — founder and investor. I know what it takes.",
+    languages:["English","Spanish"], resumeUrl:"", photo:"",
+  },
+  {
+    id:2, firstName:"Amara", lastName:"Diallo", email:"amara@consult.io",
+    source:"Application", status:"Active", reviewStatus:"Interview", archived:false,
+    tags:["Advisor Applicant","Operations","Retail"], joined:"May 7, 2026",
+    assignedTo:["james@sidekixhq.com"], notes:"Impressive brick-and-mortar to e-commerce pivot story. Schedule interview for next week.",
+    statusHistory:[
+      {status:"Pending",date:"2026-05-07"},{status:"Under Review",date:"2026-05-08"},
+      {status:"Interview",date:"2026-05-11"}
+    ],
+    city:"Atlanta", state:"GA", zip:"30301", phone:"404-555-0211",
+    website:"amaradiallo.com", social:"", linkedin:"linkedin.com/in/amaradiallo",
+    background:["Founder (built or exited a business)","Corporate executive (10+ years)"],
+    yearsOwner:"10-15 years", priorAdvisor:"No",
+    businessTypes:["Retail / E-commerce","Service-based","Consumer goods"],
+    expertise:["Operations & Scaling","Supply Chain","Retail Strategy","Team Building"],
+    strengths:["Process Optimization","Vendor Negotiation","Hiring & Culture","Brand Development"],
+    challenge:"Took a regional retail chain from 3 stores to 22 locations in 5 years while managing a full supply chain rebuild during COVID.",
+    whySidekix:"Most small business owners don't have access to operators who've actually been in the trenches. I want to be that person.",
+    whyAdvisor:"I believe mentorship is the highest ROI investment you can make in another person.",
+    languages:["English","French"], resumeUrl:"", photo:"",
+  },
+  {
+    id:3, firstName:"Dan", lastName:"Kovacs", email:"dan@venture.co",
+    source:"Application", status:"Active", reviewStatus:"Under Review", archived:false,
+    tags:["Advisor Applicant","Sales","B2B"], joined:"May 10, 2026",
+    assignedTo:[], notes:"",
+    statusHistory:[
+      {status:"Pending",date:"2026-05-10"},{status:"Under Review",date:"2026-05-11"}
+    ],
+    city:"Austin", state:"TX", zip:"78701", phone:"512-555-0199",
+    website:"dankovacs.com", social:"twitter.com/dankovacs", linkedin:"linkedin.com/in/dankovacs",
+    background:["Founder (built or exited a business)"],
+    yearsOwner:"10-15 years", priorAdvisor:"No",
+    businessTypes:["Technology / SaaS","B2B Services"],
+    expertise:["Go-to-Market Strategy","Sales & Revenue","Partnerships","CRM & Pipeline"],
+    strengths:["Outbound Sales","Enterprise Deals","Revenue Operations","Pipeline Building"],
+    challenge:"Took a B2B SaaS from $0 to $3M ARR in 18 months with a team of 4, no outside funding.",
+    whySidekix:"Entrepreneurs need real operators, not just coaches with frameworks.",
+    whyAdvisor:"I learn as much from the people I advise as they learn from me.",
+    languages:["English"], resumeUrl:"", photo:"",
+  },
+  {
+    id:4, firstName:"Priya", lastName:"Nair", email:"priya@growthlab.co",
+    source:"Application", status:"Active", reviewStatus:"Offer", archived:false,
+    tags:["Advisor Applicant","Marketing","Growth"], joined:"May 12, 2026",
+    assignedTo:["james@sidekixhq.com"], notes:"Exceptional marketing background. Offer extended — awaiting NDA signature.",
+    statusHistory:[
+      {status:"Pending",date:"2026-05-12"},{status:"Under Review",date:"2026-05-13"},
+      {status:"Interview",date:"2026-05-14"},{status:"Approved",date:"2026-05-15"},
+      {status:"Offer",date:"2026-05-16"}
+    ],
+    city:"San Francisco", state:"CA", zip:"94105", phone:"415-555-0177",
+    website:"priyanair.com", social:"twitter.com/priyanair", linkedin:"linkedin.com/in/priyanair",
+    background:["Corporate executive (10+ years)","Coach or Consultant"],
+    yearsOwner:"5-10 years", priorAdvisor:"Yes",
+    businessTypes:["Technology / SaaS","DTC / Consumer","Marketplace"],
+    expertise:["Growth Marketing","Brand Strategy","Content & SEO","Community Building"],
+    strengths:["Paid Acquisition","Retention Strategy","Influencer Marketing","Analytics"],
+    challenge:"Grew a DTC brand from $500K to $12M revenue in 2 years using organic and paid channels, then sold to a PE firm.",
+    whySidekix:"Most founders are great at building but terrible at growing. I want to close that gap.",
+    whyAdvisor:"Advising keeps me sharp and gives me perspective outside my own lane.",
+    languages:["English","Hindi"], resumeUrl:"", photo:"",
+  },
+  {
+    id:5, firstName:"Taylor", lastName:"Brooks", email:"taylor@example.com",
+    source:"Waitlist", status:"Active", reviewStatus:null, archived:false,
+    tags:["Waitlist","Early Access"], joined:"May 15, 2026",
+    assignedTo:[], notes:"Signed up via waitlist popup. Interested in Core membership.",
+    statusHistory:[], city:"Denver", state:"CO", zip:"80201",
+    phone:"", website:"", social:"", linkedin:"",
+    background:[], yearsOwner:"", priorAdvisor:"", businessTypes:[],
+    expertise:[], strengths:[], challenge:"", whySidekix:"", whyAdvisor:"", languages:[], resumeUrl:"", photo:"",
+  },
+  {
+    id:6, firstName:"Zara", lastName:"Collins", email:"zara@brandco.com",
+    source:"Subscriber", status:"Active", reviewStatus:null, archived:false,
+    tags:["Newsletter","Beta"], joined:"May 5, 2026",
+    assignedTo:[], notes:"Opened last 3 emails. High engagement.",
+    statusHistory:[], city:"Chicago", state:"IL", zip:"60601",
+    phone:"", website:"zaraco.com", social:"instagram.com/zaracollins", linkedin:"",
+    background:[], yearsOwner:"", priorAdvisor:"", businessTypes:[],
+    expertise:[], strengths:[], challenge:"", whySidekix:"", whyAdvisor:"", languages:["English"], resumeUrl:"", photo:"",
+  },
+  {
+    id:7, firstName:"Tom", lastName:"Walsh", email:"tom@media.co",
+    source:"Contact", status:"Bounced", reviewStatus:null, archived:false,
+    tags:["General Inquiry","Media"], joined:"May 6, 2026",
+    assignedTo:[], notes:"Email bounced. Reached out via contact form asking about advisor rates.",
+    statusHistory:[], city:"Nashville", state:"TN", zip:"37201",
+    phone:"615-555-0144", website:"tomwalsh.media", social:"", linkedin:"linkedin.com/in/tomwalshmedia",
+    background:[], yearsOwner:"", priorAdvisor:"", businessTypes:[],
+    expertise:[], strengths:[], challenge:"", whySidekix:"", whyAdvisor:"", languages:["English"], resumeUrl:"", photo:"",
+  },
+  {
+    id:8, firstName:"Nina", lastName:"Okafor", email:"nina@agency.co",
+    source:"Contact", status:"Active", reviewStatus:null, archived:false,
+    tags:["Partnership Inquiry","Agency"], joined:"May 9, 2026",
+    assignedTo:["james@sidekixhq.com"], notes:"Interested in referring clients. Follow up about affiliate program.",
+    statusHistory:[], city:"Houston", state:"TX", zip:"77001",
+    phone:"713-555-0166", website:"ninaokafor.agency", social:"", linkedin:"linkedin.com/in/ninaokafor",
+    background:[], yearsOwner:"", priorAdvisor:"", businessTypes:[],
+    expertise:[], strengths:[], challenge:"", whySidekix:"", whyAdvisor:"", languages:["English"], resumeUrl:"", photo:"",
+  },
+  {
+    id:9, firstName:"Leo", lastName:"Park", email:"leo@designco.com",
+    source:"Subscriber", status:"Unsubscribed", reviewStatus:null, archived:false,
+    tags:["Newsletter"], joined:"May 8, 2026",
+    assignedTo:[], notes:"Unsubscribed after Day 7 follow-up.",
+    statusHistory:[], city:"Seattle", state:"WA", zip:"98101",
+    phone:"", website:"", social:"", linkedin:"",
+    background:[], yearsOwner:"", priorAdvisor:"", businessTypes:[],
+    expertise:[], strengths:[], challenge:"", whySidekix:"", whyAdvisor:"", languages:[], resumeUrl:"", photo:"",
+  },
 ];
 
 const TEMPLATE_ORDER = ["application","offer","subscriber","contact","waitlist","nurture3","nurture7","nurture14"];
@@ -640,7 +767,7 @@ function ApplicationModal({ person, onClose, onUpdate }) {
   const [sentRej,   setSentRej]   = useState(false);
   const [rejSubj,   setRejSubj]   = useState(DEFAULT_REJECTION_SUBJECT);
   const [rejBody,   setRejBody]   = useState(DEFAULT_REJECTION_BODY);
-  const app  = person.application;
+  const app  = person.application || person;
   const tabs = [{ id:"application", label:"Application" }, { id:"profile", label:"Profile" }, { id:"history", label:"Email History" }];
 
   function handleReview(s) {
@@ -700,7 +827,7 @@ function ApplicationModal({ person, onClose, onUpdate }) {
         {/* Content */}
         <div style={{ padding:"1.5rem 2rem", overflowY:"auto", maxHeight:"72vh" }}>
 
-          {activeTab === "application" && app && (
+          {activeTab === "application" && (
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1.5rem" }}>
               <div>
                 <div style={{ marginBottom:"1.25rem", padding:14, background:DARK_CARD, borderRadius:6, border:"1px solid "+BORDER }}>
@@ -748,7 +875,7 @@ function ApplicationModal({ person, onClose, onUpdate }) {
                   <div style={{ fontSize:13, fontFamily:font, color:TEXT_SECONDARY, lineHeight:1.9, padding:"10px 12px", borderRadius:4, background:DARK_CARD2, border:"1px solid "+BORDER }}>{app.challenge}</div>
                 </Accordion>
                 <Accordion title="Why SideKix Advisor?">
-                  <div style={{ fontSize:13, fontFamily:font, color:TEXT_SECONDARY, lineHeight:1.9, padding:"10px 12px", borderRadius:4, background:DARK_CARD2, border:"1px solid "+BORDER }}>{app.whyAdvisor}</div>
+                  <div style={{ fontSize:13, fontFamily:font, color:TEXT_SECONDARY, lineHeight:1.9, padding:"10px 12px", borderRadius:4, background:DARK_CARD2, border:"1px solid "+BORDER }}>{app.whyAdvisor || app.whySidekix}</div>
                 </Accordion>
                 <Accordion title="Assigned To">
                   <AssigneeInput assignedTo={assigned} onChange={a => { setAssigned(a); onUpdate(person.id, { assignedTo: a }); }} />
@@ -1499,6 +1626,72 @@ function PipelineTab() {
   );
 }
 
+// ─── Documents Tab ───────────────────────────────────────────────────────────
+function DocsTab() {
+  return (
+    <div style={{ padding:"32px 40px", maxWidth:900, margin:"0 auto" }}>
+      <div style={{ fontFamily:serif, fontSize:26, fontWeight:300, color:GOLD, letterSpacing:"0.02em", marginBottom:8 }}>Documents</div>
+      <div style={{ fontSize:13, color:TEXT_MUTED, marginBottom:32 }}>Advisor onboarding documents — NDA, Advisor Agreement, and platform policies</div>
+
+      {/* Main card */}
+      <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:12, overflow:"hidden", marginBottom:24 }}>
+        <div style={{ padding:"28px 32px", borderBottom:"1px solid "+BORDER, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          <div>
+            <div style={{ fontFamily:serif, fontSize:20, fontWeight:300, color:TEXT_PRIMARY, marginBottom:6 }}>Advisor Onboarding Package</div>
+            <div style={{ fontSize:13, color:TEXT_MUTED }}>Sent automatically when an advisor is moved to Offer status</div>
+          </div>
+          <a href="https://sidekixhq.github.io/sidekix-docs/" target="_blank" rel="noopener noreferrer"
+            style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"10px 22px", background:GOLD, border:"none", borderRadius:8, color:DARK_BG, fontSize:13, fontWeight:600, textDecoration:"none", cursor:"pointer" }}>
+            Open Document Center ↗
+          </a>
+        </div>
+
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:0 }}>
+          {[
+            { title:"Mutual NDA", desc:"Non-disclosure, non-use & intellectual property agreement protecting both parties.", detail:"Required · 24 sections", icon:"📄" },
+            { title:"Advisor Agreement", desc:"Platform advisor agreement covering services, conduct, IP, payments & confidentiality.", detail:"Required · 30 sections", icon:"📋" },
+            { title:"Community Policy", desc:"Standards for respectful, professional conduct within the SideKix advisor network.", detail:"Required review", icon:"🤝" },
+            { title:"Payments Policy", desc:"Session fees, payout schedule, dispute resolution, and refund terms.", detail:"Required review", icon:"💳" },
+            { title:"Code of Excellence", desc:"Quality standards and performance expectations for all SideKix advisors.", detail:"Required review", icon:"⭐" },
+            { title:"Privacy Policy", desc:"How SideKix handles advisor and member data in compliance with applicable law.", detail:"For reference", icon:"🔒" },
+          ].map((doc, i) => (
+            <div key={i} style={{ padding:"20px 28px", borderBottom: i < 4 ? "1px solid "+BORDER : "none", borderRight: i % 2 === 0 ? "1px solid "+BORDER : "none" }}>
+              <div style={{ display:"flex", alignItems:"flex-start", gap:14 }}>
+                <span style={{ fontSize:22, lineHeight:1, marginTop:2 }}>{doc.icon}</span>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:14, fontWeight:600, color:TEXT_PRIMARY, marginBottom:4 }}>{doc.title}</div>
+                  <div style={{ fontSize:12, color:TEXT_MUTED, lineHeight:1.5, marginBottom:8 }}>{doc.desc}</div>
+                  <span style={{ fontSize:10, fontWeight:600, color:GOLD, textTransform:"uppercase", letterSpacing:"0.06em", background:"rgba(201,169,110,0.1)", padding:"3px 8px", borderRadius:4 }}>{doc.detail}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* How it works */}
+      <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:12, padding:"24px 28px" }}>
+        <div style={{ fontSize:12, fontWeight:600, color:TEXT_MUTED, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:16 }}>How it works</div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:20 }}>
+          {[
+            { step:"1", label:"Move to Offer", desc:"In the Subscribers tab, open an advisor application and set their status to Offer." },
+            { step:"2", label:"Confirm & send", desc:"A confirmation dialog appears. Confirm to automatically send the onboarding email with the document link." },
+            { step:"3", label:"Advisor signs", desc:"The advisor visits the document center, signs both agreements, reviews all policies, and submits." },
+          ].map(s => (
+            <div key={s.step} style={{ display:"flex", gap:14 }}>
+              <div style={{ width:28, height:28, borderRadius:"50%", background:"rgba(201,169,110,0.15)", border:"1px solid rgba(201,169,110,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:600, color:GOLD, flexShrink:0 }}>{s.step}</div>
+              <div>
+                <div style={{ fontSize:13, fontWeight:600, color:TEXT_PRIMARY, marginBottom:4 }}>{s.label}</div>
+                <div style={{ fontSize:12, color:TEXT_MUTED, lineHeight:1.5 }}>{s.desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Send Log Tab ─────────────────────────────────────────────────────────────
 function SendLogTab() {
   const [logData,      setLogData]      = useState(MOCK_SEND_LOG);
@@ -2177,6 +2370,7 @@ function Dashboard({ currentUser, onSignOut }) {
     { id:"templates",   label:"Templates"   },
     { id:"subscribers", label:"Subscribers" },
     { id:"promocodes",  label:"Promo Codes" },
+    { id:"docs",        label:"Documents"   },
     { id:"sendlog",     label:"Send Log"    },
     { id:"settings",    label:"Settings"    },
   ];
@@ -2216,6 +2410,7 @@ function Dashboard({ currentUser, onSignOut }) {
         {tab === "templates"   && <TemplatesTab />}
         {tab === "subscribers" && <SubscribersTab currentUser={currentUser} promoCodes={promoCodes} setPromoCodes={setPromoCodes} />}
         {tab === "promocodes"  && <PromoCodesTab codes={promoCodes} setCodes={setPromoCodes} />}
+        {tab === "docs"        && <DocsTab />}
         {tab === "sendlog"     && <SendLogTab />}
         {tab === "settings"    && <SettingsTab />}
       </div>
