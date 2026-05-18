@@ -182,25 +182,25 @@ const INITIAL_TEMPLATES = {
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 const MOCK_SEND_LOG = [
-  { id:1,  firstName:"Marcus",  lastName:"Ellis",   to:"marcus@fundco.io",     template:"Application Received", subject:"We received your SideKix application, Marcus!",       status:"Delivered", opened:true,  clicked:true,  sentAt:"May 4, 2026 · 9:02 AM",  unsubscribed:false },
-  { id:2,  firstName:"Marcus",  lastName:"Ellis",   to:"marcus@fundco.io",     template:"Interview",            subject:"Let's connect — SideKix Advisor Interview",           status:"Delivered", opened:true,  clicked:false, sentAt:"May 7, 2026 · 11:15 AM", unsubscribed:false },
-  { id:3,  firstName:"Marcus",  lastName:"Ellis",   to:"marcus@fundco.io",     template:"Advisor Offer",        subject:"Congratulations Marcus — you've been selected",       status:"Delivered", opened:true,  clicked:true,  sentAt:"May 10, 2026 · 2:30 PM", unsubscribed:false },
-  { id:4,  firstName:"Amara",   lastName:"Diallo",  to:"amara@consult.io",     template:"Application Received", subject:"We received your SideKix application, Amara!",        status:"Delivered", opened:true,  clicked:false, sentAt:"May 7, 2026 · 9:05 AM",  unsubscribed:false },
-  { id:5,  firstName:"Amara",   lastName:"Diallo",  to:"amara@consult.io",     template:"Interview",            subject:"Let's connect — SideKix Advisor Interview",           status:"Delivered", opened:false, clicked:false, sentAt:"May 11, 2026 · 10:00 AM",unsubscribed:false },
-  { id:6,  firstName:"Dan",     lastName:"Kovacs",  to:"dan@venture.co",       template:"Application Received", subject:"We received your SideKix application, Dan!",          status:"Delivered", opened:true,  clicked:false, sentAt:"May 10, 2026 · 9:01 AM", unsubscribed:false },
-  { id:7,  firstName:"Priya",   lastName:"Nair",    to:"priya@growthlab.co",   template:"Application Received", subject:"We received your SideKix application, Priya!",        status:"Delivered", opened:true,  clicked:true,  sentAt:"May 12, 2026 · 9:00 AM", unsubscribed:false },
-  { id:8,  firstName:"Priya",   lastName:"Nair",    to:"priya@growthlab.co",   template:"Interview",            subject:"Let's connect — SideKix Advisor Interview",           status:"Delivered", opened:true,  clicked:true,  sentAt:"May 14, 2026 · 1:00 PM", unsubscribed:false },
-  { id:9,  firstName:"Priya",   lastName:"Nair",    to:"priya@growthlab.co",   template:"Advisor Offer",        subject:"Congratulations Priya — you've been selected",        status:"Delivered", opened:true,  clicked:true,  sentAt:"May 16, 2026 · 9:30 AM", unsubscribed:false },
-  { id:10, firstName:"Taylor",  lastName:"Brooks",  to:"taylor@example.com",   template:"Waitlist Confirmation",subject:"You're on the SideKix waitlist, Taylor!",             status:"Delivered", opened:true,  clicked:false, sentAt:"May 15, 2026 · 3:44 PM", unsubscribed:false },
-  { id:11, firstName:"Taylor",  lastName:"Brooks",  to:"taylor@example.com",   template:"Follow-up · Day 3",   subject:"Still thinking about SideKix?",                       status:"Delivered", opened:false, clicked:false, sentAt:"May 18, 2026 · 9:00 AM", unsubscribed:false },
-  { id:12, firstName:"Zara",    lastName:"Collins", to:"zara@brandco.com",     template:"Subscriber Welcome",   subject:"Welcome to SideKix, Zara!",                           status:"Delivered", opened:true,  clicked:true,  sentAt:"May 5, 2026 · 4:12 PM",  unsubscribed:false },
-  { id:13, firstName:"Zara",    lastName:"Collins", to:"zara@brandco.com",     template:"Follow-up · Day 3",   subject:"Still thinking about SideKix?",                       status:"Delivered", opened:true,  clicked:false, sentAt:"May 8, 2026 · 9:00 AM",  unsubscribed:false },
-  { id:14, firstName:"Zara",    lastName:"Collins", to:"zara@brandco.com",     template:"Follow-up · Day 7",   subject:"A quick note from SideKix",                           status:"Delivered", opened:true,  clicked:false, sentAt:"May 12, 2026 · 9:00 AM", unsubscribed:false },
-  { id:15, firstName:"Tom",     lastName:"Walsh",   to:"tom@media.co",         template:"Contact Form",         subject:"Got your message — we'll be in touch soon",           status:"Bounced",   opened:false, clicked:false, sentAt:"May 6, 2026 · 11:22 AM", unsubscribed:false },
-  { id:16, firstName:"Nina",    lastName:"Okafor",  to:"nina@agency.co",       template:"Contact Form",         subject:"Got your message — we'll be in touch soon",           status:"Delivered", opened:true,  clicked:false, sentAt:"May 9, 2026 · 2:05 PM",  unsubscribed:false },
-  { id:17, firstName:"Leo",     lastName:"Park",    to:"leo@designco.com",     template:"Subscriber Welcome",   subject:"Welcome to SideKix, Leo!",                            status:"Delivered", opened:true,  clicked:false, sentAt:"May 8, 2026 · 4:30 PM",  unsubscribed:false },
-  { id:18, firstName:"Leo",     lastName:"Park",    to:"leo@designco.com",     template:"Follow-up · Day 3",   subject:"Still thinking about SideKix?",                       status:"Delivered", opened:true,  clicked:false, sentAt:"May 11, 2026 · 9:00 AM", unsubscribed:false },
-  { id:19, firstName:"Leo",     lastName:"Park",    to:"leo@designco.com",     template:"Follow-up · Day 7",   subject:"A quick note from SideKix",                           status:"Delivered", opened:false, clicked:false, sentAt:"May 15, 2026 · 9:00 AM", unsubscribed:true  },
+  { id:1,  firstName:"Marcus",  lastName:"Ellis",   to:"marcus@fundco.io",     template:"Application Received", subject:"We received your SideKix application, Marcus!",       status:"delivered", opened:true,  clicked:true,  time:"May 4, 2026 · 9:02 AM",   routedTo:"Advisors@sidekixhq.com", logType:"advisor",    unsubscribed:false },
+  { id:2,  firstName:"Marcus",  lastName:"Ellis",   to:"marcus@fundco.io",     template:"Interview",            subject:"Let's connect — SideKix Advisor Interview",           status:"delivered", opened:true,  clicked:false, time:"May 7, 2026 · 11:15 AM",  routedTo:"Advisors@sidekixhq.com", logType:"advisor",    unsubscribed:false },
+  { id:3,  firstName:"Marcus",  lastName:"Ellis",   to:"marcus@fundco.io",     template:"Advisor Offer",        subject:"Congratulations Marcus — you've been selected",       status:"delivered", opened:true,  clicked:true,  time:"May 10, 2026 · 2:30 PM",  routedTo:"Advisors@sidekixhq.com", logType:"advisor",    unsubscribed:false },
+  { id:4,  firstName:"Amara",   lastName:"Diallo",  to:"amara@consult.io",     template:"Application Received", subject:"We received your SideKix application, Amara!",        status:"delivered", opened:true,  clicked:false, time:"May 7, 2026 · 9:05 AM",   routedTo:"Advisors@sidekixhq.com", logType:"advisor",    unsubscribed:false },
+  { id:5,  firstName:"Amara",   lastName:"Diallo",  to:"amara@consult.io",     template:"Interview",            subject:"Let's connect — SideKix Advisor Interview",           status:"delivered", opened:false, clicked:false, time:"May 11, 2026 · 10:00 AM", routedTo:"Advisors@sidekixhq.com", logType:"advisor",    unsubscribed:false },
+  { id:6,  firstName:"Dan",     lastName:"Kovacs",  to:"dan@venture.co",       template:"Application Received", subject:"We received your SideKix application, Dan!",          status:"delivered", opened:true,  clicked:false, time:"May 10, 2026 · 9:01 AM",  routedTo:"Advisors@sidekixhq.com", logType:"advisor",    unsubscribed:false },
+  { id:7,  firstName:"Priya",   lastName:"Nair",    to:"priya@growthlab.co",   template:"Application Received", subject:"We received your SideKix application, Priya!",        status:"delivered", opened:true,  clicked:true,  time:"May 12, 2026 · 9:00 AM",  routedTo:"Advisors@sidekixhq.com", logType:"advisor",    unsubscribed:false },
+  { id:8,  firstName:"Priya",   lastName:"Nair",    to:"priya@growthlab.co",   template:"Interview",            subject:"Let's connect — SideKix Advisor Interview",           status:"delivered", opened:true,  clicked:true,  time:"May 14, 2026 · 1:00 PM",  routedTo:"Advisors@sidekixhq.com", logType:"advisor",    unsubscribed:false },
+  { id:9,  firstName:"Priya",   lastName:"Nair",    to:"priya@growthlab.co",   template:"Advisor Offer",        subject:"Congratulations Priya — you've been selected",        status:"delivered", opened:true,  clicked:true,  time:"May 16, 2026 · 9:30 AM",  routedTo:"Advisors@sidekixhq.com", logType:"advisor",    unsubscribed:false },
+  { id:10, firstName:"Taylor",  lastName:"Brooks",  to:"taylor@example.com",   template:"Waitlist Confirmation",subject:"You're on the SideKix waitlist, Taylor!",             status:"delivered", opened:true,  clicked:false, time:"May 15, 2026 · 3:44 PM",  routedTo:"joinus@sidekixhq.com",   logType:"subscriber", unsubscribed:false },
+  { id:11, firstName:"Taylor",  lastName:"Brooks",  to:"taylor@example.com",   template:"Follow-up · Day 3",   subject:"Still thinking about SideKix?",                       status:"delivered", opened:false, clicked:false, time:"May 18, 2026 · 9:00 AM",  routedTo:"joinus@sidekixhq.com",   logType:"subscriber", unsubscribed:false },
+  { id:12, firstName:"Zara",    lastName:"Collins", to:"zara@brandco.com",     template:"Subscriber Welcome",   subject:"Welcome to SideKix, Zara!",                           status:"delivered", opened:true,  clicked:true,  time:"May 5, 2026 · 4:12 PM",   routedTo:"joinus@sidekixhq.com",   logType:"subscriber", unsubscribed:false },
+  { id:13, firstName:"Zara",    lastName:"Collins", to:"zara@brandco.com",     template:"Follow-up · Day 3",   subject:"Still thinking about SideKix?",                       status:"delivered", opened:true,  clicked:false, time:"May 8, 2026 · 9:00 AM",   routedTo:"joinus@sidekixhq.com",   logType:"subscriber", unsubscribed:false },
+  { id:14, firstName:"Zara",    lastName:"Collins", to:"zara@brandco.com",     template:"Follow-up · Day 7",   subject:"A quick note from SideKix",                           status:"delivered", opened:true,  clicked:false, time:"May 12, 2026 · 9:00 AM",  routedTo:"joinus@sidekixhq.com",   logType:"subscriber", unsubscribed:false },
+  { id:15, firstName:"Tom",     lastName:"Walsh",   to:"tom@media.co",         template:"Contact Form",         subject:"Got your message — we'll be in touch soon",           status:"bounced",   opened:false, clicked:false, time:"May 6, 2026 · 11:22 AM",  routedTo:"joinus@sidekixhq.com",   logType:"subscriber", unsubscribed:false },
+  { id:16, firstName:"Nina",    lastName:"Okafor",  to:"nina@agency.co",       template:"Contact Form",         subject:"Got your message — we'll be in touch soon",           status:"delivered", opened:true,  clicked:false, time:"May 9, 2026 · 2:05 PM",   routedTo:"joinus@sidekixhq.com",   logType:"subscriber", unsubscribed:false },
+  { id:17, firstName:"Leo",     lastName:"Park",    to:"leo@designco.com",     template:"Subscriber Welcome",   subject:"Welcome to SideKix, Leo!",                            status:"delivered", opened:true,  clicked:false, time:"May 8, 2026 · 4:30 PM",   routedTo:"joinus@sidekixhq.com",   logType:"subscriber", unsubscribed:false },
+  { id:18, firstName:"Leo",     lastName:"Park",    to:"leo@designco.com",     template:"Follow-up · Day 3",   subject:"Still thinking about SideKix?",                       status:"delivered", opened:true,  clicked:false, time:"May 11, 2026 · 9:00 AM",  routedTo:"joinus@sidekixhq.com",   logType:"subscriber", unsubscribed:false },
+  { id:19, firstName:"Leo",     lastName:"Park",    to:"leo@designco.com",     template:"Follow-up · Day 7",   subject:"A quick note from SideKix",                           status:"delivered", opened:false, clicked:false, time:"May 15, 2026 · 9:00 AM",  routedTo:"joinus@sidekixhq.com",   logType:"subscriber", unsubscribed:true  },
 ];
 
 const MOCK_SUBSCRIBERS = [
@@ -1715,11 +1715,25 @@ function DocsTab() {
 
 // ─── Send Log Tab ─────────────────────────────────────────────────────────────
 function SendLogTab() {
-  const [logData,      setLogData]      = useState(MOCK_SEND_LOG);
-  const [logType,      setLogType]      = useState("All emails");
-  const [statusFilter, setStatusFilter] = useState("All statuses");
-  const [search,       setSearch]       = useState("");
-  const [selectedIds,  setSelectedIds]  = useState(new Set());
+  const width = useWindowWidth();
+  const isMobile = width < 768;
+  const [logData,        setLogData]        = useState(MOCK_SEND_LOG);
+  const [logType,        setLogType]        = useState("All emails");
+  const [statusFilter,   setStatusFilter]   = useState("All statuses");
+  const [search,         setSearch]         = useState("");
+  const [selectedIds,    setSelectedIds]    = useState(new Set());
+  const [showPromoModal, setShowPromoModal] = useState(false);
+
+  function archiveSelected() {
+    setLogData(p => p.filter(r => !selectedIds.has(r.id)));
+    setSelectedIds(new Set());
+  }
+  function deleteSelected() {
+    if (window.confirm("Delete " + selectedIds.size + " record(s)? This cannot be undone.")) {
+      setLogData(p => p.filter(r => !selectedIds.has(r.id)));
+      setSelectedIds(new Set());
+    }
+  }
 
   const filtered = logData.filter(r => {
     const mType = logType === "All emails" || (logType === "Subscriber emails" && r.logType === "subscriber") || (logType === "Advisor emails" && r.logType === "advisor");
