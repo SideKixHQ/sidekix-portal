@@ -766,7 +766,7 @@ function EmailComposer({ isInvite, person, app, show, setShow, sent, setSent, su
 }
 
 // ─── Application Modal ────────────────────────────────────────────────────────
-function ApplicationModal({ person, onClose, onUpdate }) {
+function ApplicationModal({ person, onClose, onUpdate, onArchive, onDelete }) {
   const toast = useToast();
   const width = useWindowWidth();
   const isMobile = width < 768;
@@ -833,7 +833,21 @@ function ApplicationModal({ person, onClose, onUpdate }) {
               <SourceTag source={person.source} /><StatusTag status={status} /><ReviewTag status={review} />
             </div>
           </div>
-          <button onClick={onClose} style={{ fontSize:11, padding:"6px 14px", borderRadius:4, border:"1px solid "+BORDER, background:"transparent", color:TEXT_MUTED, cursor:"pointer", fontFamily:font, textTransform:"uppercase" }}>✕ Close</button>
+          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+            {onArchive && (
+              <button onClick={() => { if (window.confirm("Archive " + person.firstName + " " + person.lastName + "? They'll be hidden from the default view but can be restored.")) { onArchive(person.id); onClose(); } }}
+                style={{ fontSize:11, padding:"6px 12px", borderRadius:4, border:"1px solid "+BORDER, background:"transparent", color:TEXT_MUTED, cursor:"pointer", fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em" }}>
+                Archive
+              </button>
+            )}
+            {onDelete && (
+              <button onClick={() => { if (window.confirm("Permanently delete " + person.firstName + " " + person.lastName + "? This cannot be undone.")) { onDelete(person.id); onClose(); } }}
+                style={{ fontSize:11, padding:"6px 12px", borderRadius:4, border:"1px solid rgba(220,100,100,0.4)", background:"rgba(220,100,100,0.08)", color:"#E07070", cursor:"pointer", fontFamily:font, textTransform:"uppercase", letterSpacing:"0.05em" }}>
+                Delete
+              </button>
+            )}
+            <button onClick={onClose} style={{ fontSize:11, padding:"6px 14px", borderRadius:4, border:"1px solid "+BORDER, background:"transparent", color:TEXT_MUTED, cursor:"pointer", fontFamily:font, textTransform:"uppercase" }}>✕ Close</button>
+          </div>
         </div>
         {/* Tabs */}
         <div style={{ display:"flex", borderBottom:"1px solid "+BORDER, padding:"0 2rem" }}>
@@ -1433,7 +1447,7 @@ function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
               );
             })}
             {activePerson && activePerson.source === "Application" && (
-              <ApplicationModal person={activePerson} onClose={() => setActivePerson(null)} onUpdate={updatePerson} />
+              <ApplicationModal person={activePerson} onClose={() => setActivePerson(null)} onUpdate={updatePerson} onArchive={id => { setSubs(p => p.map(s => s.id===id ? {...s,archived:true} : s)); serverPatch(id,{archived:true}); }} onDelete={id => { setSubs(p => p.filter(s => s.id!==id)); serverDelete([id]); }} />
             )}
           </div>
         );
@@ -1543,7 +1557,7 @@ function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
           <div style={{ marginTop:"0.75rem", fontSize:11, color:TEXT_MUTED, fontFamily:font }}>{filtered.length} of {subs.length} subscribers · Click any row to view details</div>
         </div>
         {activePerson && activePerson.source !== "Application" && <SidePanel person={activePerson} onClose={() => setActivePerson(null)} onUpdate={updatePerson} />}
-        {activePerson && activePerson.source === "Application" && <ApplicationModal person={activePerson} onClose={() => setActivePerson(null)} onUpdate={updatePerson} />}
+        {activePerson && activePerson.source === "Application" && <ApplicationModal person={activePerson} onClose={() => setActivePerson(null)} onUpdate={updatePerson} onArchive={id => { archivePerson(id); }} onDelete={id => { deletePerson(id); }} />}
       </div>
     {/* Promo Code Send Modal */}
     {showPromoModal && (
@@ -1796,6 +1810,24 @@ function PipelineTab() {
         person={activePerson}
         onClose={() => setActivePerson(null)}
         onUpdate={(id, updates) => updatePerson(id, updates)}
+        onArchive={id => {
+          setAllApps(p => p.filter(a => a.id !== id));
+          fetch(SERVER_URL + "/contacts/" + id, {
+            method:"PATCH",
+            headers:{"Content-Type":"application/json","X-SideKix-Secret":SERVER_SECRET},
+            body:JSON.stringify({archived:true}),
+          }).catch(e => console.warn(e));
+          setActivePerson(null);
+        }}
+        onDelete={id => {
+          setAllApps(p => p.filter(a => a.id !== id));
+          fetch(SERVER_URL + "/contacts", {
+            method:"DELETE",
+            headers:{"Content-Type":"application/json","X-SideKix-Secret":SERVER_SECRET},
+            body:JSON.stringify({ids:[id]}),
+          }).catch(e => console.warn(e));
+          setActivePerson(null);
+        }}
       />
     )}
     </div>}
