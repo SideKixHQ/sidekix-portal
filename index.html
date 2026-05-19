@@ -390,10 +390,11 @@ function Accordion({ title, children }) {
   );
 }
 function Chips({ items }) {
-  if (!items || !items.length) return <span style={{ fontSize:12, color:TEXT_MUTED, fontFamily:font }}>—</span>;
+  const arr = Array.isArray(items) ? items : (items ? String(items).split(",").map(s => s.trim()).filter(Boolean) : []);
+  if (!arr.length) return <span style={{ fontSize:12, color:TEXT_MUTED, fontFamily:font }}>—</span>;
   return (
     <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
-      {items.map((item, i) => <span key={i} style={{ fontSize:11, padding:"3px 8px", borderRadius:3, background:DARK_CARD2, border:"1px solid "+BORDER, color:TEXT_SECONDARY, fontFamily:font }}>{item}</span>)}
+      {arr.map((item, i) => <span key={i} style={{ fontSize:11, padding:"3px 8px", borderRadius:3, background:DARK_CARD2, border:"1px solid "+BORDER, color:TEXT_SECONDARY, fontFamily:font }}>{item}</span>)}
     </div>
   );
 }
@@ -1068,19 +1069,28 @@ function SidePanel({ person, onClose, onUpdate }) {
 // ─── Row Menu (three-dot) ─────────────────────────────────────────────────────
 function RowMenu({ archived, onArchive, onRestore, onDelete, onUnsubscribe, isUnsubscribed, extraActions }) {
   const [open, setOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top:0, right:0 });
   const ref = useRef(null);
+  const btnRef = useRef(null);
   useEffect(() => {
     function handler(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+  function handleOpen() {
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+    }
+    setOpen(o => !o);
+  }
   return (
     <div ref={ref} style={{ position:"relative" }} onClick={e => e.stopPropagation()}>
-      <button onClick={() => setOpen(o => !o)} style={{ background:"none", border:"none", color:TEXT_MUTED, cursor:"pointer", fontSize:16, padding:"2px 6px", borderRadius:3, lineHeight:1 }}>
+      <button ref={btnRef} onClick={handleOpen} style={{ background:"none", border:"none", color:TEXT_MUTED, cursor:"pointer", fontSize:16, padding:"2px 6px", borderRadius:3, lineHeight:1 }}>
         {"⋯"}
       </button>
       {open && (
-        <div style={{ position:"absolute", right:0, top:"calc(100% + 4px)", background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:4, zIndex:200, boxShadow:"0 4px 16px rgba(0,0,0,0.5)", overflow:"hidden", minWidth:130 }}>
+        <div style={{ position:"fixed", right:menuPos.right, top:menuPos.top, background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:4, zIndex:9999, boxShadow:"0 4px 16px rgba(0,0,0,0.5)", overflow:"hidden", minWidth:140 }}>
           {archived
             ? <div onClick={e => { setOpen(false); onRestore(e); }}
                 style={{ padding:"9px 14px", fontSize:12, fontFamily:font, color:TEXT_SECONDARY, cursor:"pointer", borderBottom:"1px solid "+BORDER }}
