@@ -1113,7 +1113,81 @@ function RowMenu({ archived, onArchive, onRestore, onDelete, onUnsubscribe, isUn
 function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
   const width = useWindowWidth();
   const isMobile = width < 768;
-  const [subs,         setSubs]         = useState(MOCK_SUBSCRIBERS);
+  const [subs,         setSubs]         = useState([]);
+  const [loadingContacts, setLoadingContacts] = useState(true);
+  const [loadError,    setLoadError]    = useState(null);
+
+  // Load real contacts from server on mount
+  useEffect(() => {
+    setLoadingContacts(true);
+    fetch(SERVER_URL + "/contacts", {
+      headers: { "X-SideKix-Secret": SERVER_SECRET }
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.contacts)) {
+          // Normalize server fields to portal field names
+          const normalized = data.contacts.map(c => ({
+            id:         c.id,
+            firstName:  c.first_name || "",
+            lastName:   c.last_name  || "",
+            email:      c.email      || "",
+            phone:      c.phone      || "",
+            source:     sourceLabel(c.source || c.form_type || ""),
+            status:     c.status === "active" ? "Active" : c.status === "unsubscribed" ? "Unsubscribed" : c.status === "bounced" ? "Bounced" : c.status || "Active",
+            reviewStatus: c.review     || "",
+            tags:       c.tags       || [],
+            notes:      c.notes      || "",
+            expertise:  c.expertise  || "",
+            background: c.background || "",
+            strengths:  c.strengths  || "",
+            challenge:  c.challenge  || "",
+            whySidekix: c.why_sidekix|| "",
+            linkedin:   c.linkedin   || "",
+            website:    c.website    || "",
+            city:       c.city       || "",
+            state:      c.state      || "",
+            archived:   c.archived   || false,
+            joined:     c.created_at ? new Date(c.created_at).toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" }) : "",
+          }));
+          setSubs(normalized);
+        } else {
+          setLoadError("Could not load contacts.");
+        }
+      })
+      .catch(() => setLoadError("Could not reach server. Check your connection."))
+      .finally(() => setLoadingContacts(false));
+  }, []);
+
+  function sourceLabel(ft) {
+    if (ft === "application") return "Application";
+    if (ft === "subscriber")  return "Subscriber";
+    if (ft === "waitlist")    return "Waitlist";
+    if (ft === "contact")     return "Contact";
+    return ft ? ft.charAt(0).toUpperCase() + ft.slice(1) : "Subscriber";
+  }
+
+  // Persist a change to a single contact on the server
+  async function serverPatch(id, updates) {
+    try {
+      await fetch(SERVER_URL + "/contacts/" + id, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "X-SideKix-Secret": SERVER_SECRET },
+        body: JSON.stringify(updates),
+      });
+    } catch(e) { console.warn("Server patch failed:", e); }
+  }
+
+  // Persist deletion of one or more contacts
+  async function serverDelete(ids) {
+    try {
+      await fetch(SERVER_URL + "/contacts", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", "X-SideKix-Secret": SERVER_SECRET },
+        body: JSON.stringify({ ids }),
+      });
+    } catch(e) { console.warn("Server delete failed:", e); }
+  }
   const [search,       setSearch]       = useState("");
   const [subsView,     setSubsView]     = useState("list");
   const [showPromoModal,  setShowPromoModal]  = useState(false);
@@ -1132,22 +1206,27 @@ function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   function archivePerson(id) {
-    setSubs(p => p.map(s => s.id === id ? Object.assign({}, s, { status:"Archived", archived:true }) : s));
+    setSubs(p => p.map(s => s.id === id ? Object.assign({}, s, { archived:true }) : s));
+    serverPatch(id, { archived: true });
     if (activePerson && activePerson.id === id) setActivePerson(null);
   }
   async function unsubscribePerson(id, email) {
     try {
-      await fetch(SERVER_URL + "/unsubscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-SideKix-Secret": SERVER_SECRET },
-        body: JSON.stringify({ email })
-      });
+      await fetch(SERVER_URL + "/unsubscribe?email=" + encodeURIComponent(email));
     } catch(e) { console.warn("Server unsubscribe failed:", e); }
     setSubs(p => p.map(s => s.id === id ? Object.assign({}, s, { status:"Unsubscribed" }) : s));
+    serverPatch(id, { status: "unsubscribed" });
     if (activePerson && activePerson.id === id) setActivePerson(prev => Object.assign({}, prev, { status:"Unsubscribed" }));
   }
   function archiveSelected() {
-    setSelectedIds(prev => { prev.forEach(id => archivePerson(id)); return new Set(); });
+    const ids = [...selectedIds];
+    ids.forEach(id => setSubs(p => p.map(s => s.id === id ? Object.assign({}, s, { archived:true }) : s)));
+    fetch(SERVER_URL + "/contacts", {
+      method: "PATCH",
+      headers: { "Content-Type":"application/json", "X-SideKix-Secret": SERVER_SECRET },
+      body: JSON.stringify({ ids, updates: { archived: true } }),
+    }).catch(e => console.warn("Bulk archive failed:", e));
+    setSelectedIds(new Set());
   }
   async function sendPromoToSelected() {
     if (promoModalMode === "existing" && !promoPickCode) return;
@@ -1203,16 +1282,20 @@ function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
   }
   function deletePerson(id) {
     setSubs(p => p.filter(s => s.id !== id));
+    serverDelete([id]);
     if (activePerson && activePerson.id === id) setActivePerson(null);
     setConfirmDelete(null);
   }
   function deleteSelected() {
+    const ids = [...selectedIds];
     setSubs(p => p.filter(s => !selectedIds.has(s.id)));
+    serverDelete(ids);
     setSelectedIds(new Set());
     setActivePerson(null);
   }
   function restorePerson(id) {
-    setSubs(p => p.map(s => s.id === id ? Object.assign({}, s, { status:"Active", archived:false }) : s));
+    setSubs(p => p.map(s => s.id === id ? Object.assign({}, s, { archived:false, status:"Active" }) : s));
+    serverPatch(id, { archived: false, status: "active" });
   }
 
   const filtered = useMemo(() => {
@@ -1241,6 +1324,17 @@ function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
   function updatePerson(id, updates) {
     setSubs(p => p.map(s => s.id === id ? Object.assign({}, s, updates) : s));
     if (activePerson && activePerson.id === id) setActivePerson(p => Object.assign({}, p, updates));
+    // Map portal field names back to server field names
+    const serverUpdates = {};
+    if (updates.reviewStatus !== undefined) serverUpdates.review       = updates.reviewStatus;
+    if (updates.notes        !== undefined) serverUpdates.notes        = updates.notes;
+    if (updates.tags         !== undefined) serverUpdates.tags         = updates.tags;
+    if (updates.status       !== undefined) serverUpdates.status       = updates.status.toLowerCase();
+    if (updates.firstName    !== undefined) serverUpdates.first_name   = updates.firstName;
+    if (updates.lastName     !== undefined) serverUpdates.last_name    = updates.lastName;
+    if (updates.phone        !== undefined) serverUpdates.phone        = updates.phone;
+    if (updates.expertise    !== undefined) serverUpdates.expertise    = updates.expertise;
+    if (Object.keys(serverUpdates).length > 0) serverPatch(id, serverUpdates);
   }
   function downloadCSV() {
     const rows = (selectedIds.size > 0 ? filtered.filter(s => selectedIds.has(s.id)) : filtered)
@@ -1263,7 +1357,18 @@ function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
 
   return (
     <>
-    <div>
+    {loadingContacts && (
+      <div style={{ padding:"60px 40px", textAlign:"center" }}>
+        <div style={{ fontSize:13, color:TEXT_MUTED, fontFamily:font }}>Loading contacts from server…</div>
+      </div>
+    )}
+    {loadError && !loadingContacts && (
+      <div style={{ padding:"40px", textAlign:"center" }}>
+        <div style={{ fontSize:13, color:"#E07070", fontFamily:font, marginBottom:12 }}>{loadError}</div>
+        <button onClick={() => window.location.reload()} style={{ padding:"8px 20px", background:"none", border:"1px solid "+BORDER, borderRadius:6, color:TEXT_SECONDARY, fontSize:12, cursor:"pointer", fontFamily:font }}>Retry</button>
+      </div>
+    )}
+    {!loadingContacts && !loadError && <div>
       {/* View toggle */}
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"1rem" }}>
         <div style={{ display:"flex", background:DARK_CARD, borderRadius:6, border:"1px solid "+BORDER, overflow:"hidden" }}>
@@ -1561,11 +1666,59 @@ function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
 
 // ─── Pipeline Tab ─────────────────────────────────────────────────────────────
 function PipelineTab() {
+  const width = useWindowWidth();
+  const isMobile = width < 768;
   const [activePerson, setActivePerson] = useState(null);
-  const [allApps, setAllApps] = useState(MOCK_SUBSCRIBERS.filter(s => s.source === "Application"));
+  const [allApps, setAllApps] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(SERVER_URL + "/contacts", { headers: { "X-SideKix-Secret": SERVER_SECRET } })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          const apps = data.contacts
+            .filter(c => c.source === "application" || c.form_type === "application")
+            .map(c => ({
+              id:           c.id,
+              firstName:    c.first_name || "",
+              lastName:     c.last_name  || "",
+              email:        c.email      || "",
+              source:       "Application",
+              reviewStatus: c.review     || "Pending",
+              tags:         c.tags       || [],
+              notes:        c.notes      || "",
+              expertise:    c.expertise  || "",
+              background:   c.background || "",
+              strengths:    c.strengths  || "",
+              challenge:    c.challenge  || "",
+              whySidekix:   c.why_sidekix|| "",
+              linkedin:     c.linkedin   || "",
+              website:      c.website    || "",
+              statusHistory: c.status_history || [],
+              joined:       c.created_at ? new Date(c.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "",
+            }));
+          setAllApps(apps);
+        }
+      })
+      .catch(e => console.warn("PipelineTab load failed:", e))
+      .finally(() => setLoading(false));
+  }, []);
+
   function updatePerson(id, updates) {
     setAllApps(prev => prev.map(s => s.id === id ? Object.assign({}, s, updates) : s));
     if (activePerson && activePerson.id === id) setActivePerson(prev => Object.assign({}, prev, updates));
+    // Persist to server
+    const serverUpdates = {};
+    if (updates.reviewStatus !== undefined) serverUpdates.review = updates.reviewStatus;
+    if (updates.notes        !== undefined) serverUpdates.notes  = updates.notes;
+    if (Object.keys(serverUpdates).length > 0) {
+      fetch(SERVER_URL + "/contacts/" + id, {
+        method: "PATCH",
+        headers: { "Content-Type":"application/json", "X-SideKix-Secret": SERVER_SECRET },
+        body: JSON.stringify(serverUpdates),
+      }).catch(e => console.warn("Pipeline patch failed:", e));
+    }
   }
   const apps = allApps.filter(s => s.statusHistory);
   const rows = apps.map(s => {
@@ -1590,7 +1743,9 @@ function PipelineTab() {
   ];
   const th = { padding:"9px 14px", textAlign:"left", fontFamily:font, fontWeight:500, fontSize:10, letterSpacing:"0.1em", textTransform:"uppercase", color:TEXT_MUTED, borderBottom:"1px solid "+BORDER, whiteSpace:"nowrap" };
   return (
-    <div>
+    <>
+    {loading && <div style={{ padding:"60px 40px", textAlign:"center", color:TEXT_MUTED, fontSize:13, fontFamily:font }}>Loading pipeline…</div>}
+    {!loading && <div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10, marginBottom:"1.5rem" }}>
         {stages.map(s => (
           <div key={s.key} style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:4, padding:"14px 18px" }}>
@@ -1613,7 +1768,9 @@ function PipelineTab() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r, i) => (
+            {rows.length === 0
+              ? <tr><td colSpan={6} style={{ padding:"40px", textAlign:"center", color:TEXT_MUTED, fontFamily:font }}>No applicants with status history yet.</td></tr>
+              : rows.map((r, i) => (
               <tr key={r.id} onClick={() => setActivePerson(allApps.find(a => a.id === r.id))}
                 style={{ borderBottom: i < rows.length - 1 ? "1px solid "+BORDER : "none", cursor:"pointer" }}
                 onMouseEnter={e => e.currentTarget.style.background="rgba(201,169,110,0.04)"}
@@ -1641,7 +1798,8 @@ function PipelineTab() {
         onUpdate={(id, updates) => updatePerson(id, updates)}
       />
     )}
-    </div>
+    </div>}
+    </>
   );
 }
 
