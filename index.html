@@ -887,7 +887,7 @@ function ApplicationModal({ person, onClose, onUpdate, onArchive, onDelete }) {
                   <div style={{ marginBottom:"0.75rem" }}><div style={{ ...lbl, marginBottom:6 }}>Background</div><Chips items={app.background} /></div>
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.5rem 1rem", marginBottom:"0.75rem" }}>
                     <InfoField label="Years as Owner" value={app.yearsOwner} />
-                    <InfoField label="Prior Advisor"  value={app.priorAdvisor} />
+                    <InfoField label="Prior Advisor"  value={app.prevAdvisor || app.priorAdvisor} />
                   </div>
                   <div style={{ ...lbl, marginBottom:6 }}>Business Types</div><Chips items={app.businessTypes} />
                 </Accordion>
@@ -1152,27 +1152,35 @@ function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
         if (data.success && Array.isArray(data.contacts)) {
           // Normalize server fields to portal field names
           const normalized = data.contacts.map(c => ({
-            id:         c.id,
-            firstName:  c.first_name || "",
-            lastName:   c.last_name  || "",
-            email:      c.email      || "",
-            phone:      c.phone      || "",
-            source:     sourceLabel(c.source || c.form_type || ""),
-            status:     c.status === "active" ? "Active" : c.status === "unsubscribed" ? "Unsubscribed" : c.status === "bounced" ? "Bounced" : c.status || "Active",
-            reviewStatus: c.review     || "",
-            tags:       c.tags       || [],
-            notes:      c.notes      || "",
-            expertise:  c.expertise  || "",
-            background: c.background || "",
-            strengths:  c.strengths  || "",
-            challenge:  c.challenge  || "",
-            whySidekix: c.why_sidekix|| "",
-            linkedin:   c.linkedin   || "",
-            website:    c.website    || "",
-            city:       c.city       || "",
-            state:      c.state      || "",
-            archived:   c.archived   || false,
-            joined:     c.created_at ? new Date(c.created_at).toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" }) : "",
+            id:           c.id,
+            firstName:    c.first_name  || "",
+            lastName:     c.last_name   || "",
+            email:        c.email       || "",
+            phone:        c.phone       || "",
+            source:       sourceLabel(c.source || c.form_type || ""),
+            status:       c.status === "active" ? "Active" : c.status === "unsubscribed" ? "Unsubscribed" : c.status === "bounced" ? "Bounced" : c.status || "Active",
+            reviewStatus: c.review      || "",
+            tags:         c.tags        || [],
+            notes:        c.notes       || "",
+            expertise:    c.expertise   || "",
+            background:   c.background  || "",
+            strengths:    c.strengths   || "",
+            challenge:    c.challenge   || "",
+            whySidekix:   c.why_sidekix || "",
+            linkedin:     c.linkedin    || "",
+            website:      c.website     || "",
+            city:         c.city        || "",
+            state:        c.state       || "",
+            zip:          c.zip_code    || "",
+            socialHandles:c.social_handles || "",
+            languages:    c.languages   || "",
+            resume:       c.resume_url  || "",
+            resumeName:   c.resume_url ? c.resume_url.split("/").pop() : "",
+            yearsOwner:   c.years_owner || "",
+            businessTypes:c.business_types || "",
+            prevAdvisor:  c.prev_advisor || "",
+            archived:     c.archived    || false,
+            joined:       c.created_at ? new Date(c.created_at).toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" }) : "",
           }));
           setSubs(normalized);
         } else {
@@ -1705,20 +1713,30 @@ function PipelineTab() {
             .filter(c => c.source === "application" || c.form_type === "application")
             .map(c => ({
               id:           c.id,
-              firstName:    c.first_name || "",
-              lastName:     c.last_name  || "",
-              email:        c.email      || "",
+              firstName:    c.first_name  || "",
+              lastName:     c.last_name   || "",
+              email:        c.email       || "",
+              phone:        c.phone       || "",
               source:       "Application",
-              reviewStatus: c.review     || "Pending",
-              tags:         c.tags       || [],
-              notes:        c.notes      || "",
-              expertise:    c.expertise  || "",
-              background:   c.background || "",
-              strengths:    c.strengths  || "",
-              challenge:    c.challenge  || "",
-              whySidekix:   c.why_sidekix|| "",
-              linkedin:     c.linkedin   || "",
-              website:      c.website    || "",
+              reviewStatus: c.review      || "Pending",
+              tags:         c.tags        || [],
+              notes:        c.notes       || "",
+              expertise:    c.expertise   || "",
+              background:   c.background  || "",
+              strengths:    c.strengths   || "",
+              challenge:    c.challenge   || "",
+              whySidekix:   c.why_sidekix || "",
+              linkedin:     c.linkedin    || "",
+              website:      c.website     || "",
+              city:         c.city        || "",
+              zip:          c.zip_code    || "",
+              socialHandles:c.social_handles || "",
+              languages:    c.languages   || "",
+              resume:       c.resume_url  || "",
+              resumeName:   c.resume_url ? c.resume_url.split("/").pop() : "",
+              yearsOwner:   c.years_owner || "",
+              businessTypes:c.business_types || "",
+              prevAdvisor:  c.prev_advisor || "",
               statusHistory: c.status_history || [],
               joined:       c.created_at ? new Date(c.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "",
             }));
@@ -1917,21 +1935,64 @@ function DocsTab() {
 function SendLogTab() {
   const width = useWindowWidth();
   const isMobile = width < 768;
-  const [logData,        setLogData]        = useState(MOCK_SEND_LOG);
+  const [logData,        setLogData]        = useState([]);
+  const [loading,        setLoading]        = useState(true);
   const [logType,        setLogType]        = useState("All emails");
   const [statusFilter,   setStatusFilter]   = useState("All statuses");
   const [search,         setSearch]         = useState("");
   const [selectedIds,    setSelectedIds]    = useState(new Set());
   const [showPromoModal, setShowPromoModal] = useState(false);
 
+  // Load from server on mount
+  useEffect(() => {
+    fetch(SERVER_URL + "/sendlog", { headers: { "X-SideKix-Secret": SERVER_SECRET } })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.logs)) {
+          // Normalize server field names to what the UI expects
+          const normalized = data.logs.map(l => ({
+            id:           l.id,
+            firstName:    l.first_name || "",
+            lastName:     l.last_name  || "",
+            to:           l.email      || "",
+            template:     l.template   || "",
+            subject:      l.subject    || "",
+            routedTo:     l.routed_to  || "",
+            logType:      l.log_type   || "subscriber",
+            status:       l.status     || "delivered",
+            opened:       l.opened     || false,
+            clicked:      l.clicked    || false,
+            unsubscribed: l.unsubscribed || false,
+            time:         l.time       || "",
+          }));
+          // Most recent first
+          setLogData(normalized.reverse());
+        }
+      })
+      .catch(e => console.warn("SendLog fetch failed:", e))
+      .finally(() => setLoading(false));
+  }, []);
+
   function archiveSelected() {
+    const ids = [...selectedIds];
     setLogData(p => p.filter(r => !selectedIds.has(r.id)));
     setSelectedIds(new Set());
+    fetch(SERVER_URL + "/sendlog", {
+      method: "DELETE",
+      headers: { "Content-Type":"application/json", "X-SideKix-Secret": SERVER_SECRET },
+      body: JSON.stringify({ ids }),
+    }).catch(e => console.warn(e));
   }
   function deleteSelected() {
     if (window.confirm("Delete " + selectedIds.size + " record(s)? This cannot be undone.")) {
+      const ids = [...selectedIds];
       setLogData(p => p.filter(r => !selectedIds.has(r.id)));
       setSelectedIds(new Set());
+      fetch(SERVER_URL + "/sendlog", {
+        method: "DELETE",
+        headers: { "Content-Type":"application/json", "X-SideKix-Secret": SERVER_SECRET },
+        body: JSON.stringify({ ids }),
+      }).catch(e => console.warn(e));
     }
   }
 
@@ -1966,6 +2027,8 @@ function SendLogTab() {
 
   return (
     <div>
+    {loading && <div style={{ padding:"60px 40px", textAlign:"center", color:TEXT_MUTED, fontSize:13, fontFamily:font }}>Loading send log…</div>}
+    {!loading && <div>
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1rem", marginBottom:"1.5rem" }}>
         {[{ title:"Subscriber Emails", logs:subLogs, from:"joinus@sidekixhq.com" }, { title:"Advisor Emails", logs:advLogs, from:"Advisors@sidekixhq.com" }].map(({ title, logs, from }) => (
           <div key={title} style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:6, padding:"1rem" }}>
@@ -2052,6 +2115,7 @@ function SendLogTab() {
       <div style={{ marginTop:"0.75rem", fontSize:11, color:TEXT_MUTED, fontFamily:font }}>
         {filtered.length} of {logData.length} records · 👁 opened · 🔗 clicked
       </div>
+    </div>}
     </div>
   );
 }
