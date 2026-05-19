@@ -1543,9 +1543,8 @@ function SubscribersTab({ currentUser, promoCodes, setPromoCodes }) {
           <div style={{ marginTop:"0.75rem", fontSize:11, color:TEXT_MUTED, fontFamily:font }}>{filtered.length} of {subs.length} subscribers · Click any row to view details</div>
         </div>
         {activePerson && activePerson.source !== "Application" && <SidePanel person={activePerson} onClose={() => setActivePerson(null)} onUpdate={updatePerson} />}
+        {activePerson && activePerson.source === "Application" && <ApplicationModal person={activePerson} onClose={() => setActivePerson(null)} onUpdate={updatePerson} />}
       </div>
-      </div>
-      {activePerson && activePerson.source === "Application" && <ApplicationModal person={activePerson} onClose={() => setActivePerson(null)} onUpdate={updatePerson} />}
     {/* Promo Code Send Modal */}
     {showPromoModal && (
       <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center" }} onClick={() => !promoSending && setShowPromoModal(false)}
@@ -2044,6 +2043,296 @@ function SettingsBlock({ title, from, state, setState, saved, setSaved }) {
   );
 }
 
+// ─── Customers Tab ────────────────────────────────────────────────────────────
+const MOCK_CUSTOMERS = [
+  { id:1,  firstName:"Marcus",  lastName:"Ellis",   email:"marcus@fundco.io",     phone:"+1-212-555-0188", membershipType:"Core Package",    membershipDuration:"1 year",   status:"Active",    sessions:4,  labels:["Advisor","Founder","SaaS"],       joined:"May 4, 2026",  avatar:"ME" },
+  { id:2,  firstName:"Amara",   lastName:"Diallo",  email:"amara@consult.io",     phone:"+1-404-555-0211", membershipType:"Pay as you grow", membershipDuration:"",          status:"Active",    sessions:1,  labels:["Advisor Applicant","Operations"], joined:"May 7, 2026",  avatar:"AD" },
+  { id:3,  firstName:"Priya",   lastName:"Nair",    email:"priya@growthlab.co",   phone:"+1-415-555-0177", membershipType:"Premium Package", membershipDuration:"3 months",  status:"Active",    sessions:7,  labels:["Advisor","Marketing","Growth"],   joined:"May 12, 2026", avatar:"PN" },
+  { id:4,  firstName:"Dan",     lastName:"Kovacs",  email:"dan@venture.co",       phone:"+1-512-555-0199", membershipType:"Core Package",    membershipDuration:"3 months",  status:"Active",    sessions:2,  labels:["Advisor Applicant","Sales","B2B"],joined:"May 10, 2026", avatar:"DK" },
+  { id:5,  firstName:"Taylor",  lastName:"Brooks",  email:"taylor@example.com",   phone:"",                membershipType:"Pay as you grow", membershipDuration:"",          status:"Active",    sessions:0,  labels:["Waitlist","Early Access"],        joined:"May 15, 2026", avatar:"TB" },
+  { id:6,  firstName:"Zara",    lastName:"Collins", email:"zara@brandco.com",     phone:"",                membershipType:"Pay as you grow", membershipDuration:"",          status:"Active",    sessions:1,  labels:["Newsletter","Beta"],              joined:"May 5, 2026",  avatar:"ZC" },
+  { id:7,  firstName:"Nina",    lastName:"Okafor",  email:"nina@agency.co",       phone:"+1-713-555-0166", membershipType:"Core Package",    membershipDuration:"1 year",    status:"Active",    sessions:3,  labels:["Partnership","Agency"],           joined:"May 9, 2026",  avatar:"NO" },
+  { id:8,  firstName:"Leo",     lastName:"Park",    email:"leo@designco.com",     phone:"",                membershipType:"Pay as you grow", membershipDuration:"",          status:"Suspended", sessions:0,  labels:["Newsletter"],                     joined:"May 8, 2026",  avatar:"LP" },
+  { id:9,  firstName:"Jordan",  lastName:"Hayes",   email:"jordan@buildco.io",    phone:"+1-303-555-0122", membershipType:"Premium Package", membershipDuration:"1 year",    status:"Active",    sessions:12, labels:["Power User","SaaS","Founder"],    joined:"Apr 28, 2026", avatar:"JH" },
+  { id:10, firstName:"Sofia",   lastName:"Reyes",   email:"sofia@launchpad.co",   phone:"+1-786-555-0199", membershipType:"Core Package",    membershipDuration:"3 months",  status:"Active",    sessions:5,  labels:["Early Access","DTC"],             joined:"Apr 30, 2026", avatar:"SR" },
+  { id:11, firstName:"Malik",   lastName:"Turner",  email:"malik@growth.io",      phone:"+1-214-555-0133", membershipType:"Pay as you grow", membershipDuration:"",          status:"Invited",   sessions:0,  labels:["Beta"],                           joined:"May 16, 2026", avatar:"MT" },
+  { id:12, firstName:"Casey",   lastName:"Morgan",  email:"casey@ventures.co",    phone:"+1-617-555-0144", membershipType:"Pay as you grow", membershipDuration:"",          status:"Invited",   sessions:0,  labels:["Waitlist"],                       joined:"May 17, 2026", avatar:"CM" },
+  { id:13, firstName:"Devon",   lastName:"Walsh",   email:"devon@techco.io",      phone:"+1-206-555-0155", membershipType:"Core Package",    membershipDuration:"1 year",    status:"Active",    sessions:8,  labels:["SaaS","B2B","Power User"],        joined:"Apr 22, 2026", avatar:"DW" },
+  { id:14, firstName:"Ren",     lastName:"Nakamura",email:"ren@studiolab.co",     phone:"+1-310-555-0166", membershipType:"Premium Package", membershipDuration:"3 months",  status:"Active",    sessions:6,  labels:["Design","Creative"],              joined:"May 1, 2026",  avatar:"RN" },
+  { id:15, firstName:"Imani",   lastName:"Foster",  email:"imani@scalable.io",    phone:"+1-404-555-0177", membershipType:"Pay as you grow", membershipDuration:"",          status:"Active",    sessions:2,  labels:["Founder","Bootstrapped"],         joined:"May 3, 2026",  avatar:"IF" },
+];
+
+function CustomerAvatar({ initials, size }) {
+  const sz = size || 36;
+  return (
+    <div style={{ width:sz, height:sz, borderRadius:"50%", background:"rgba(201,169,110,0.15)", border:"1px solid rgba(201,169,110,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:sz*0.3, fontWeight:700, fontFamily:font, color:GOLD_LIGHT, flexShrink:0 }}>
+      {initials}
+    </div>
+  );
+}
+
+function CustomerLabelChip({ label }) {
+  return (
+    <span style={{ fontSize:10, padding:"2px 8px", borderRadius:20, background:"rgba(201,169,110,0.08)", border:"1px solid rgba(201,169,110,0.2)", color:TEXT_MUTED, fontFamily:font, whiteSpace:"nowrap" }}>
+      {label}
+    </span>
+  );
+}
+
+function CustomerRow({ c, selected, onSelect }) {
+  const mc = MEMBERSHIP_COLORS[c.membershipType] || MEMBERSHIP_COLORS["Pay as you grow"];
+  const visibleLabels = c.labels.slice(0, 2);
+  const extraCount   = c.labels.length - 2;
+  return (
+    <tr style={{ borderBottom:"1px solid "+BORDER, transition:"background 0.15s", cursor:"pointer" }}
+      onMouseEnter={e => e.currentTarget.style.background = "rgba(201,169,110,0.04)"}
+      onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+      <td style={{ padding:"12px 16px", width:40 }}>
+        <input type="checkbox" checked={selected} onChange={onSelect}
+          style={{ accentColor:GOLD, width:14, height:14, cursor:"pointer" }} />
+      </td>
+      <td style={{ padding:"12px 8px" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <CustomerAvatar initials={c.avatar} />
+          <div>
+            <div style={{ fontSize:13, fontWeight:600, color:TEXT_PRIMARY, fontFamily:font }}>{c.firstName} {c.lastName}</div>
+            <div style={{ fontSize:11, color:TEXT_MUTED, marginTop:2, fontFamily:font }}>Joined {c.joined}</div>
+          </div>
+        </div>
+      </td>
+      <td style={{ padding:"12px 8px" }}>
+        <div style={{ fontSize:12, color:TEXT_SECONDARY, fontFamily:font }}>{c.phone || "—"}</div>
+        <div style={{ fontSize:11, color:TEXT_MUTED, marginTop:2, fontFamily:"'DM Mono', monospace" }}>{c.email}</div>
+      </td>
+      <td style={{ padding:"12px 8px" }}>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
+          {visibleLabels.map(l => <CustomerLabelChip key={l} label={l} />)}
+          {extraCount > 0 && <span style={{ fontSize:10, padding:"2px 6px", borderRadius:20, background:"rgba(106,100,84,0.2)", color:TEXT_MUTED, fontFamily:font }}>+{extraCount}</span>}
+        </div>
+      </td>
+      <td style={{ padding:"12px 8px" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <span style={{ fontSize:16 }}>◆</span>
+          <div>
+            <div style={{ fontSize:12, fontWeight:600, color:TEXT_PRIMARY, fontFamily:font }}>{c.membershipType}</div>
+            {c.membershipDuration && <div style={{ fontSize:11, color:TEXT_MUTED, marginTop:1, fontFamily:font }}>{c.membershipDuration}</div>}
+          </div>
+        </div>
+      </td>
+      <td style={{ padding:"12px 8px" }}>
+        <div style={{ fontSize:12, color:TEXT_SECONDARY, fontFamily:"'DM Mono', monospace", textAlign:"center" }}>{c.sessions}</div>
+      </td>
+      <td style={{ padding:"12px 16px", textAlign:"right" }}>
+        <button style={{ fontSize:12, fontWeight:600, color:GOLD, background:"none", border:"none", cursor:"pointer", fontFamily:font, textDecoration:"underline", textUnderlineOffset:2 }}>
+          View Profile
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+function CustomersTab() {
+  const width = useWindowWidth();
+  const isMobile = width < 768;
+  const [subTab,      setSubTab]      = useState("active");
+  const [search,      setSearch]      = useState("");
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [showInvite,  setShowInvite]  = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteSent,  setInviteSent]  = useState(false);
+  const [memberFilter, setMemberFilter] = useState("All");
+
+  const bySubTab = MOCK_CUSTOMERS.filter(c => {
+    if (subTab === "active")    return c.status === "Active";
+    if (subTab === "invited")   return c.status === "Invited";
+    if (subTab === "suspended") return c.status === "Suspended";
+    if (subTab === "sessions")  return c.sessions > 0;
+    return true;
+  });
+
+  const filtered = bySubTab.filter(c => {
+    const q = search.toLowerCase();
+    const matchSearch = !q || (c.firstName + " " + c.lastName).toLowerCase().includes(q) || c.email.toLowerCase().includes(q);
+    const matchMember = memberFilter === "All" || c.membershipType === memberFilter;
+    return matchSearch && matchMember;
+  });
+
+  const allSelected = filtered.length > 0 && filtered.every(c => selectedIds.has(c.id));
+  function toggleAll() {
+    if (allSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(filtered.map(c => c.id)));
+  }
+
+  function exportCSV() {
+    const headers = ["First","Last","Email","Phone","Membership","Duration","Sessions","Status","Labels","Joined"];
+    const rows = filtered.map(c => [c.firstName,c.lastName,c.email,c.phone,c.membershipType,c.membershipDuration,c.sessions,c.status,c.labels.join("; "),c.joined]);
+    const csv = [headers,...rows].map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\n");
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download="sidekix-customers.csv"; a.click();
+  }
+
+  const tabCounts = {
+    active:    MOCK_CUSTOMERS.filter(c => c.status === "Active").length,
+    invited:   MOCK_CUSTOMERS.filter(c => c.status === "Invited").length,
+    suspended: MOCK_CUSTOMERS.filter(c => c.status === "Suspended").length,
+    sessions:  MOCK_CUSTOMERS.filter(c => c.sessions > 0).length,
+  };
+
+  const SUBTABS = [
+    { id:"active",    label:"Active" },
+    { id:"sessions",  label:"Sessions" },
+    { id:"invited",   label:"Invited" },
+    { id:"suspended", label:"Suspended" },
+  ];
+
+  const MEMBER_FILTERS = ["All","Pay as you grow","Core Package","Premium Package"];
+
+  return (
+    <div style={{ padding: isMobile ? "16px" : "28px 32px", maxWidth:1200, margin:"0 auto" }}>
+      {/* Header */}
+      <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:20 }}>
+        <div>
+          <div style={{ fontFamily:serif, fontSize:28, fontWeight:300, color:TEXT_PRIMARY, letterSpacing:"0.02em" }}>Customers</div>
+        </div>
+        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+          <button onClick={exportCSV} style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", background:"none", border:"1px solid "+BORDER, borderRadius:8, color:TEXT_SECONDARY, fontSize:12, cursor:"pointer", fontFamily:font }}>
+            <span style={{ fontSize:14 }}>↓</span> Download CSV
+          </button>
+          <button onClick={() => setShowInvite(true)} style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 16px", background:GOLD, border:"none", borderRadius:8, color:DARK_BG, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:font }}>
+            + Invite User
+          </button>
+        </div>
+      </div>
+
+      {/* Sub-tabs */}
+      <div style={{ display:"flex", gap:0, borderBottom:"1px solid "+BORDER, marginBottom:20 }}>
+        {SUBTABS.map(st => (
+          <button key={st.id} onClick={() => setSubTab(st.id)}
+            style={{ padding:"10px 18px", background:"none", border:"none", borderBottom: subTab===st.id ? "2px solid "+GOLD : "2px solid transparent", color: subTab===st.id ? GOLD : TEXT_MUTED, fontSize:13, fontWeight: subTab===st.id ? 600 : 400, cursor:"pointer", fontFamily:font, marginBottom:-1, whiteSpace:"nowrap" }}>
+            {st.label}
+            <span style={{ marginLeft:6, fontSize:11, color: subTab===st.id ? GOLD : TEXT_MUTED, opacity:0.7 }}>({tabCounts[st.id]})</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Search + filters */}
+      <div style={{ display:"flex", gap:10, marginBottom:16, alignItems:"center", flexWrap:"wrap" }}>
+        <div style={{ flex:1, minWidth:200, position:"relative" }}>
+          <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:TEXT_MUTED, fontSize:14 }}>🔍</span>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search customers…"
+            style={{ width:"100%", padding:"8px 12px 8px 34px", background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:8, color:TEXT_PRIMARY, fontSize:13, outline:"none", fontFamily:font, boxSizing:"border-box" }} />
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+          <span style={{ fontSize:11, color:TEXT_MUTED, letterSpacing:"0.06em", textTransform:"uppercase" }}>Membership</span>
+          {MEMBER_FILTERS.map(f => (
+            <button key={f} onClick={() => setMemberFilter(f)}
+              style={{ padding:"6px 12px", background: memberFilter===f ? GOLD : "none", border:"1px solid "+(memberFilter===f ? GOLD : BORDER), borderRadius:20, color: memberFilter===f ? DARK_BG : TEXT_SECONDARY, fontSize:11, cursor:"pointer", fontFamily:font, fontWeight: memberFilter===f ? 700 : 400, whiteSpace:"nowrap" }}>
+              {f === "Pay as you grow" ? "Free" : f === "Core Package" ? "Core" : f === "Premium Package" ? "Premium" : f}
+            </button>
+          ))}
+        </div>
+        <button style={{ display:"flex", alignItems:"center", gap:5, padding:"8px 14px", background:"none", border:"1px solid "+BORDER, borderRadius:8, color:TEXT_SECONDARY, fontSize:12, cursor:"pointer", fontFamily:font }}>
+          ⚙ Filters
+        </button>
+      </div>
+
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 16px", background:"rgba(201,169,110,0.08)", border:"1px solid rgba(201,169,110,0.25)", borderRadius:8, marginBottom:12 }}>
+          <span style={{ fontSize:12, color:GOLD, fontWeight:600, fontFamily:font }}>{selectedIds.size} selected</span>
+          <div style={{ flex:1 }} />
+          <button onClick={() => setSelectedIds(new Set())} style={{ fontSize:11, padding:"5px 12px", background:"none", border:"1px solid "+BORDER, borderRadius:6, color:TEXT_SECONDARY, cursor:"pointer", fontFamily:font }}>Clear</button>
+          <button style={{ fontSize:11, padding:"5px 12px", background:"none", border:"1px solid "+BORDER, borderRadius:6, color:TEXT_SECONDARY, cursor:"pointer", fontFamily:font }}>📧 Message</button>
+          <button style={{ fontSize:11, padding:"5px 12px", background:"rgba(220,100,100,0.15)", border:"1px solid rgba(220,100,100,0.3)", borderRadius:6, color:"#E07070", cursor:"pointer", fontFamily:font }}>⛔ Suspend</button>
+        </div>
+      )}
+
+      {/* Count row */}
+      <div style={{ fontSize:13, fontWeight:600, color:TEXT_PRIMARY, fontFamily:font, marginBottom:10 }}>
+        {subTab.charAt(0).toUpperCase() + subTab.slice(1)} ({filtered.length})
+      </div>
+
+      {/* Table */}
+      <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:10, overflowX:"auto" }}>
+        <table style={{ width:"100%", borderCollapse:"collapse", tableLayout:"fixed", minWidth:760 }}>
+          <colgroup>
+            <col style={{ width:40 }} />
+            <col style={{ width:"22%" }} />
+            <col style={{ width:"22%" }} />
+            <col style={{ width:"20%" }} />
+            <col style={{ width:"18%" }} />
+            <col style={{ width:70 }} />
+            <col style={{ width:100 }} />
+          </colgroup>
+          <thead>
+            <tr style={{ borderBottom:"1px solid "+BORDER }}>
+              <th style={{ padding:"12px 16px" }}>
+                <input type="checkbox" checked={allSelected} onChange={toggleAll}
+                  style={{ accentColor:GOLD, width:14, height:14, cursor:"pointer" }} />
+              </th>
+              {[["Full Name","left"],["Contact Info","left"],["Categories","left"],["Membership Type","left"],["Sessions","center"],["Actions","right"]].map(([h,align]) => (
+                <th key={h} style={{ padding:"12px 8px", textAlign:align, fontSize:10, fontWeight:600, color:TEXT_MUTED, letterSpacing:"0.07em", textTransform:"uppercase", fontFamily:font }}>
+                  {h} {h !== "Actions" && h !== "Sessions" && <span style={{ opacity:0.5 }}>↕</span>}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 ? (
+              <tr><td colSpan={7} style={{ padding:40, textAlign:"center", color:TEXT_MUTED, fontSize:13, fontFamily:font }}>No customers found</td></tr>
+            ) : filtered.map(c => (
+              <CustomerRow key={c.id} c={c}
+                selected={selectedIds.has(c.id)}
+                onSelect={() => {
+                  const next = new Set(selectedIds);
+                  next.has(c.id) ? next.delete(c.id) : next.add(c.id);
+                  setSelectedIds(next);
+                }} />
+            ))}
+          </tbody>
+        </table>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 16px", borderTop:"1px solid "+BORDER }}>
+          <span style={{ fontSize:12, color:TEXT_MUTED, fontFamily:font }}>Page 1 of 1</span>
+          <div style={{ display:"flex", gap:8 }}>
+            <button style={{ padding:"6px 14px", background:"none", border:"1px solid "+BORDER, borderRadius:6, color:TEXT_MUTED, fontSize:12, cursor:"pointer", fontFamily:font }}>← Previous</button>
+            <button style={{ padding:"6px 14px", background:"none", border:"1px solid "+BORDER, borderRadius:6, color:TEXT_MUTED, fontSize:12, cursor:"pointer", fontFamily:font }}>Next →</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Invite User Modal */}
+      {showInvite && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
+          <div style={{ background:DARK_CARD, border:"1px solid "+BORDER, borderRadius:12, padding:28, width:400, maxWidth:"90vw" }}>
+            <div style={{ fontSize:16, fontWeight:600, color:TEXT_PRIMARY, fontFamily:font, marginBottom:6 }}>Invite User</div>
+            <div style={{ fontSize:12, color:TEXT_MUTED, fontFamily:font, marginBottom:16 }}>Send an invite link to a new customer</div>
+            {!inviteSent ? (
+              <>
+                <label style={{ fontSize:11, color:TEXT_MUTED, fontFamily:font, textTransform:"uppercase", letterSpacing:"0.08em" }}>Email address</label>
+                <input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
+                  placeholder="name@company.com"
+                  style={{ display:"block", width:"100%", marginTop:6, padding:"9px 12px", background:DARK_CARD2, border:"1px solid "+BORDER, borderRadius:6, color:TEXT_PRIMARY, fontSize:13, fontFamily:font, outline:"none", boxSizing:"border-box" }} />
+                <div style={{ display:"flex", gap:10, marginTop:20 }}>
+                  <button onClick={() => { setShowInvite(false); setInviteEmail(""); }}
+                    style={{ flex:1, padding:"9px", background:"none", border:"1px solid "+BORDER, borderRadius:6, color:TEXT_SECONDARY, fontSize:13, cursor:"pointer", fontFamily:font }}>Cancel</button>
+                  <button onClick={() => { if (inviteEmail) { setInviteSent(true); } }}
+                    style={{ flex:1, padding:"9px", background:GOLD, border:"none", borderRadius:6, color:DARK_BG, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:font }}>Send Invite</button>
+                </div>
+              </>
+            ) : (
+              <div style={{ textAlign:"center", padding:"16px 0" }}>
+                <div style={{ fontSize:28, marginBottom:10 }}>✓</div>
+                <div style={{ fontSize:14, fontWeight:600, color:TEXT_PRIMARY, fontFamily:font }}>Invite sent!</div>
+                <div style={{ fontSize:12, color:TEXT_MUTED, fontFamily:font, marginTop:4, marginBottom:20 }}>We sent an invite to {inviteEmail}</div>
+                <button onClick={() => { setShowInvite(false); setInviteEmail(""); setInviteSent(false); }}
+                  style={{ padding:"8px 24px", background:GOLD, border:"none", borderRadius:6, color:DARK_BG, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:font }}>Done</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 // ─── Promo Codes Tab ──────────────────────────────────────────────────────────
 const INITIAL_CODES = [
   { id:1, code:"FOUNDER20",  type:"Presale",  tier:"Core",    discountType:"% off",    value:"20", duration:"One-time", singleUse:true,  onePerEmail:true,  uses:8,  maxUses:50,  active:true,  starts:"", expires:"2026-12-31", campaign:"Founder",  notes:"Founder pricing", promoMsg:"You locked in founder pricing!",
