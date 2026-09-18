@@ -299,7 +299,7 @@ td .sub { display: block; font-size: 12px; color: var(--ink-3); font-family: var
 
 /* ─── Menus ────────────────────────────────────────────────────────────────── */
 .menu {
-  position: absolute; right: 0; top: calc(100% + 4px); z-index: 60;
+  position: fixed; z-index: 400;
   background: var(--surface); border: 1px solid var(--line-firm);
   border-radius: var(--r-md); box-shadow: var(--shadow);
   min-width: 190px; overflow: hidden; padding: 4px;
@@ -688,22 +688,47 @@ function Menu({
   items
 }) {
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState(null);
   const box = useRef(null);
+  const btn = useRef(null);
+
+  /* The menu is positioned against the viewport rather than the row. Tables
+     scroll sideways, and a scroll container clips anything absolutely
+     positioned inside it, which is what made this menu invisible. */
+  const place = useCallback(() => {
+    if (!btn.current) return;
+    const r = btn.current.getBoundingClientRect();
+    const height = Math.min(52 + items.filter(Boolean).length * 40, 320);
+    const below = window.innerHeight - r.bottom;
+    setPos({
+      top: below < height && r.top > height ? Math.max(8, r.top - height - 4) : r.bottom + 4,
+      right: Math.max(8, window.innerWidth - r.right)
+    });
+  }, [items]);
   useEffect(() => {
     if (!open) return;
+    place();
     function away(e) {
       if (box.current && !box.current.contains(e.target)) setOpen(false);
     }
     function esc(e) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        if (btn.current) btn.current.focus();
+      }
     }
     document.addEventListener("mousedown", away);
     document.addEventListener("keydown", esc);
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
     return () => {
       document.removeEventListener("mousedown", away);
       document.removeEventListener("keydown", esc);
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
     };
-  }, [open]);
+  }, [open, place]);
+  const entries = items.filter(Boolean);
   return /*#__PURE__*/React.createElement("div", {
     ref: box,
     style: {
@@ -711,6 +736,7 @@ function Menu({
     },
     onClick: e => e.stopPropagation()
   }, /*#__PURE__*/React.createElement("button", {
+    ref: btn,
     type: "button",
     className: "btn btn-ghost btn-sm",
     "aria-haspopup": "menu",
@@ -720,10 +746,15 @@ function Menu({
     "aria-hidden": "true"
   }, "•••"), /*#__PURE__*/React.createElement("span", {
     className: "sr-only"
-  }, label)), open && /*#__PURE__*/React.createElement("div", {
+  }, label)), open && pos && /*#__PURE__*/React.createElement("div", {
     className: "menu",
-    role: "menu"
-  }, items.filter(Boolean).map((item, i) => /*#__PURE__*/React.createElement("button", {
+    role: "menu",
+    style: {
+      position: "fixed",
+      top: pos.top,
+      right: pos.right
+    }
+  }, entries.map((item, i) => /*#__PURE__*/React.createElement("button", {
     key: i,
     type: "button",
     role: "menuitem",
