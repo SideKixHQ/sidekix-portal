@@ -2122,8 +2122,8 @@ function PromoPage({
       fontSize: 13
     }
   }, r.email), " ", /*#__PURE__*/React.createElement(Tag, {
-    label: titleCase(r.status),
-    tone: r.status === "redeemed" ? "good" : "flat"
+    label: r.status === "holding" ? "Holding" : titleCase(r.status),
+    tone: r.status === "redeemed" ? "good" : r.status === "holding" ? "gold" : "flat"
   })))) : /*#__PURE__*/React.createElement("div", {
     className: "val val-empty"
   }, "This code has not been emailed to anyone from the portal."))))));
